@@ -1,0 +1,2454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SmartBus | Karnataka Intelligent Bus Transport Analytics Platform</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            govNavy: '#0b2545',
+            govNavyLight: '#133966',
+            govGold: '#d97706',
+            govGoldLight: '#fef3c7',
+            govSlate: '#f8fafc',
+            govBorder: '#e2e8f0',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+    body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    .badge-dq { background-color: #fee2e2; color: #991b1b; }
+    .badge-stat { background-color: #fef3c7; color: #92400e; }
+  </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden text-slate-800">
+
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+  <!-- TOP GOVERNMENT HEADER BAR -->
+  <header class="bg-govNavy text-white px-6 py-2.5 flex items-center justify-between border-b-4 border-govGold shadow-md z-30">
+    <div class="flex items-center space-x-4">
+      <div class="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center font-bold text-govNavy shadow-inner text-xl">
+        🚌
+      </div>
+      <div>
+        <div class="flex items-center space-x-2">
+          <span class="text-xs tracking-wider uppercase font-semibold text-amber-400">Government of Karnataka • Transport Department</span>
+          <span class="bg-blue-900 text-blue-200 text-[10px] px-2 py-0.5 rounded font-mono">SOLVATHON 2026 - PS 3</span>
+        </div>
+        <h1 class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+          SmartBus <span class="text-xs font-normal text-slate-300">| Intelligent Bus Transport Analytics & Intelligence Platform</span>
+        </h1>
+      </div>
+    </div>
+
+    <!-- Active Dataset Pill & Quick Actions -->
+    <div class="flex items-center space-x-3">
+      <div id="active-dataset-pill" class="flex items-center bg-govNavyLight border border-slate-600 px-3 py-1 rounded-full text-xs text-slate-200">
+        <span id="active-dataset-dot" class="w-2 h-2 rounded-full bg-slate-400 mr-2"></span>
+        <span id="active-dataset-name" class="font-medium">No Active Dataset</span>
+        <span id="active-dataset-type-badge" class="ml-2 bg-slate-700 text-[10px] px-1.5 py-0.5 rounded font-bold uppercase text-amber-400">Awaiting Upload</span>
+      </div>
+
+      <!-- Deactivate Button (Visible only when dataset is active) -->
+      <button id="btn-deactivate-header" onclick="deactivateActiveDataset()" class="hidden items-center gap-1.5 bg-rose-900 hover:bg-rose-800 text-rose-200 text-xs px-2.5 py-1.5 rounded transition border border-rose-700 shadow-sm" title="Unload active dataset and return to Welcome Screen">
+        <i data-lucide="power" class="w-3.5 h-3.5 text-rose-300"></i>
+        <span>Deactivate</span>
+      </button>
+
+      <!-- Export Source 10-Cols CSV -->
+      <a id="btn-export-source" href="/api/export/source-data-csv" target="_blank" onclick="return handleExportClick(event)" class="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-2.5 py-1.5 rounded transition border border-slate-600 shadow-sm" title="Download Verified Source Data (Exact 10 Columns)">
+        <i data-lucide="download" class="w-3.5 h-3.5 text-emerald-400"></i>
+        <span>Source CSV (10-Cols)</span>
+      </a>
+
+      <!-- Executive PDF Briefing -->
+      <a id="btn-export-pdf" href="/api/export/executive-pdf" target="_blank" onclick="return handleExportClick(event)" class="flex items-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold px-3 py-1.5 rounded transition shadow-sm" title="Generate Executive Briefing PDF">
+        <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+        <span>PDF Briefing</span>
+      </a>
+
+      <button onclick="triggerUniversalUpload()" class="flex items-center gap-1.5 bg-govGold hover:bg-amber-600 text-white font-semibold text-xs px-3 py-1.5 rounded transition shadow-sm">
+        <i data-lucide="upload" class="w-3.5 h-3.5"></i>
+        <span>Upload Dataset</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN BODY WITH SIDEBAR AND CONTENT -->
+  <div class="flex flex-1 overflow-hidden">
+    
+    <!-- SIDEBAR NAVIGATION -->
+    <aside class="w-64 bg-slate-900 text-slate-300 flex flex-col border-r border-slate-800 shadow-lg select-none">
+      <div class="p-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400 border-b border-slate-800 flex items-center justify-between">
+        <span>Navigation</span>
+        <span id="sidebar-dataset-indicator" class="text-[9px] bg-slate-800 text-amber-400 px-1.5 py-0.5 rounded font-mono">STANDBY</span>
+      </div>
+      
+      <nav class="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-4">
+        <!-- Overview Group -->
+        <div>
+          <div class="text-[10px] uppercase font-bold text-slate-400 px-2.5 mb-1.5 tracking-wider">Overview</div>
+          <div class="space-y-0.5">
+            <button onclick="switchTab('welcome')" id="nav-welcome" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium bg-govGold text-white shadow-sm transition">
+              <i data-lucide="compass" class="w-4 h-4"></i>
+              <span>Welcome to SmartBus</span>
+            </button>
+            <button onclick="switchTab('executive-overview')" id="nav-executive-overview" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium hover:bg-slate-800 hover:text-white transition">
+              <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+              <span>Executive Overview</span>
+            </button>
+            <button onclick="switchTab('dataset-management')" id="nav-dataset-management" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium hover:bg-slate-800 hover:text-white transition">
+              <i data-lucide="database" class="w-4 h-4"></i>
+              <span>Dataset & Quality Audit</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Operational Analytics Group -->
+        <div>
+          <div class="text-[10px] uppercase font-bold text-slate-400 px-2.5 mb-1.5 tracking-wider">Operational Analytics</div>
+          <div class="space-y-0.5">
+            <button onclick="switchTab('passenger-analytics')" id="nav-passenger-analytics" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium hover:bg-slate-800 hover:text-white transition">
+              <i data-lucide="users" class="w-4 h-4"></i>
+              <span>Passenger & Tickets</span>
+            </button>
+            <button onclick="switchTab('revenue-analytics')" id="nav-revenue-analytics" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium hover:bg-slate-800 hover:text-white transition">
+              <i data-lucide="indian-rupee" class="w-4 h-4"></i>
+              <span>Collection Analytics</span>
+            </button>
+            <button onclick="switchTab('od-intelligence')" id="nav-od-intelligence" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium hover:bg-slate-800 hover:text-white transition">
+              <i data-lucide="map-pin" class="w-4 h-4"></i>
+              <span>Origin–Destination (OD)</span>
+            </button>
+            <button onclick="switchTab('time-analytics')" id="nav-time-analytics" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium hover:bg-slate-800 hover:text-white transition">
+              <i data-lucide="clock" class="w-4 h-4"></i>
+              <span>Time & Peak Hours</span>
+            </button>
+            <button onclick="switchTab('waybill-analytics')" id="nav-waybill-analytics" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium hover:bg-slate-800 hover:text-white transition">
+              <i data-lucide="clipboard-list" class="w-4 h-4"></i>
+              <span>Waybill Analytics</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Intelligence & AI Group -->
+        <div>
+          <div class="text-[10px] uppercase font-bold text-slate-400 px-2.5 mb-1.5 tracking-wider">Intelligence & AI</div>
+          <div class="space-y-0.5">
+            <button onclick="switchTab('intelligent-insights')" id="nav-intelligent-insights" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium hover:bg-slate-800 hover:text-white transition">
+              <i data-lucide="sparkles" class="w-4 h-4 text-amber-400"></i>
+              <span>Automated Insights</span>
+            </button>
+            <button onclick="switchTab('anomaly-detection')" id="nav-anomaly-detection" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium hover:bg-slate-800 hover:text-white transition">
+              <i data-lucide="alert-triangle" class="w-4 h-4 text-rose-400"></i>
+              <span>Anomaly Detection</span>
+            </button>
+            <button onclick="switchTab('forecasting')" id="nav-forecasting" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium hover:bg-slate-800 hover:text-white transition">
+              <i data-lucide="trending-up" class="w-4 h-4 text-cyan-400"></i>
+              <span>Forecasting Engine</span>
+            </button>
+            <button onclick="switchTab('recommendations')" id="nav-recommendations" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium hover:bg-slate-800 hover:text-white transition">
+              <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i>
+              <span>Action Recommendations</span>
+            </button>
+            <button onclick="switchTab('ask-smartbus')" id="nav-ask-smartbus" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium hover:bg-slate-800 hover:text-white transition">
+              <i data-lucide="message-square" class="w-4 h-4 text-blue-400"></i>
+              <span>Ask SmartBus (AI)</span>
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      <!-- Sidebar Footer -->
+      <div class="p-3 bg-slate-950 border-t border-slate-800 text-[11px] text-slate-400">
+        <div class="flex items-center justify-between">
+          <span>Schema Integrity</span>
+          <span class="text-emerald-400 font-bold">10/10 Immutable</span>
+        </div>
+        <div class="text-[10px] text-slate-400 mt-1">Exact Column Order • Zero Extra Fields</div>
+      </div>
+    </aside>
+
+    <!-- CONTENT DISPLAY AREA -->
+    <main class="flex-1 flex flex-col overflow-y-auto custom-scrollbar p-6 space-y-6">
+      
+      <!-- STICKY FILTER BAR -->
+      <div id="global-filter-bar" class="bg-white rounded-lg p-3.5 shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center space-x-3">
+          <div class="flex items-center gap-2 text-xs font-semibold text-slate-600">
+            <i data-lucide="filter" class="w-4 h-4 text-govNavy"></i>
+            <span>Interactive Filter:</span>
+          </div>
+          <select id="waybill-filter-select" onchange="applyWaybillFilter()" class="border border-slate-300 text-xs rounded px-2.5 py-1.5 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-govNavy font-medium" disabled>
+            <option value="">All Waybills (Entire Fleet)</option>
+          </select>
+        </div>
+
+        <div class="flex items-center space-x-2 text-xs text-slate-500">
+          <span class="bg-slate-100 text-slate-700 px-2.5 py-1 rounded font-mono text-[11px]" id="filter-status-text">
+            SmartBus in clean standby state. Upload or activate an Excel/CSV dataset to unlock analytics.
+          </span>
+          <button onclick="refreshAllData()" class="p-1.5 hover:bg-slate-100 rounded text-slate-600 transition" title="Refresh Data">
+            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- ======================================================== -->
+      <!-- TAB 0: WELCOME SCREEN (LANDING EXPERIENCE)               -->
+      <!-- ======================================================== -->
+      <section id="tab-welcome" class="tab-content space-y-8">
+        <!-- Hero Banner -->
+        <div class="bg-gradient-to-r from-govNavy to-govNavyLight text-white rounded-xl p-8 shadow-md border-b-4 border-govGold relative overflow-hidden">
+          <div class="absolute -right-10 -bottom-10 opacity-10 text-white pointer-events-none">
+            <i data-lucide="bus" class="w-72 h-72"></i>
+          </div>
+          <div class="relative z-10 max-w-3xl space-y-3">
+            <div class="inline-flex items-center gap-2 bg-amber-500/20 text-amber-300 border border-amber-400/30 px-3 py-1 rounded-full text-xs font-semibold tracking-wide uppercase">
+              <span>🏛️ Transport Department of Karnataka</span>
+              <span>•</span>
+              <span>Intelligent Analytics Platform</span>
+            </div>
+            <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
+              Welcome to SmartBus
+            </h1>
+            <p class="text-base sm:text-lg text-amber-400 font-semibold">
+              Intelligent Bus Transport Analytics Platform
+            </p>
+            <p class="text-sm text-slate-200 leading-relaxed pt-1">
+              Transform bus ticket data into meaningful operational intelligence. Discover passenger patterns, collection trends, travel demand and actionable insights.
+            </p>
+            <div class="pt-3 flex flex-wrap items-center gap-3">
+              <button onclick="triggerUniversalUpload()" class="bg-govGold hover:bg-amber-600 text-white font-bold text-xs sm:text-sm px-5 py-2.5 rounded-lg transition shadow flex items-center gap-2">
+                <i data-lucide="upload" class="w-4 h-4"></i>
+                <span>Upload Dataset Now</span>
+              </button>
+              <button onclick="switchTab('dataset-management')" class="bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-600 font-semibold text-xs sm:text-sm px-4 py-2.5 rounded-lg transition flex items-center gap-2">
+                <i data-lucide="database" class="w-4 h-4 text-amber-400"></i>
+                <span>Dataset Repository</span>
+              </button>
+              <div id="welcome-active-hint" class="hidden text-xs text-emerald-300 font-medium items-center gap-1.5 ml-2">
+                <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i>
+                <span>Dataset currently active. <button onclick="switchTab('executive-overview')" class="underline hover:text-white font-bold">Go to Dashboard &rarr;</button></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Universal Upload Zone & Format Guide -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- Prominent Drag & Drop Upload Zone -->
+          <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 lg:col-span-2 space-y-4">
+            <div class="flex items-center justify-between border-b pb-3">
+              <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center">
+                  <i data-lucide="upload-cloud" class="w-5 h-5"></i>
+                </div>
+                <div>
+                  <h3 class="text-base font-bold text-govNavy">Ingest Transport Ticketing Dataset</h3>
+                  <p class="text-xs text-slate-500">Supports official Karnataka Transport ticketing exports (.xlsx, .xls, .csv)</p>
+                </div>
+              </div>
+              <span class="text-[11px] bg-slate-100 text-slate-700 px-2.5 py-1 rounded font-semibold uppercase font-mono">
+                Byte-Preserved Non-Destructive Ingest
+              </span>
+            </div>
+
+            <!-- Drag & Drop Target -->
+            <div id="welcome-drop-zone" class="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center hover:border-govNavy hover:bg-slate-50/80 transition cursor-pointer bg-slate-50 group">
+              <div class="w-14 h-14 rounded-full bg-blue-50 text-govNavy flex items-center justify-center mx-auto mb-3 group-hover:scale-105 transition shadow-sm">
+                <i data-lucide="file-spreadsheet" class="w-7 h-7 text-govNavy"></i>
+              </div>
+              <p class="text-sm font-bold text-slate-800">Drag & Drop your Excel (.xlsx) or CSV (.csv) file here</p>
+              <p class="text-xs text-slate-500 mt-1">Or click anywhere in this box to browse local files</p>
+              <div class="mt-4 inline-flex items-center gap-2 bg-govNavy text-white hover:bg-govNavyLight text-xs font-semibold px-4 py-2 rounded-lg transition shadow-sm">
+                <i data-lucide="folder-open" class="w-3.5 h-3.5 text-amber-400"></i>
+                <span>Choose Local File</span>
+              </div>
+              <input type="file" id="universal-file-input" class="hidden" accept=".xlsx,.xls,.csv" onchange="handleFileUpload(this.files[0])">
+            </div>
+
+            <!-- Live Status Feedback -->
+            <div id="welcome-upload-status" class="hidden text-xs p-3 rounded-lg border"></div>
+
+            <!-- Repository Quick Notice -->
+            <div id="welcome-repo-prompt" class="bg-slate-50 border border-slate-200 rounded-lg p-3.5 flex items-center justify-between text-xs text-slate-700">
+              <div class="flex items-center gap-2">
+                <i data-lucide="layers" class="w-4 h-4 text-govGold"></i>
+                <span>Preserved Datasets Available in Repository: <strong id="welcome-repo-count" class="text-govNavy">0</strong> dataset(s) ready to activate.</span>
+              </div>
+              <button onclick="switchTab('dataset-management')" class="text-govNavy font-bold hover:underline flex items-center gap-1">
+                <span>View Repository</span>
+                <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Strict 10-Column Schema Card -->
+          <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between space-y-4">
+            <div>
+              <div class="flex items-center gap-2 text-govNavy font-bold text-sm mb-1">
+                <i data-lucide="shield-check" class="w-4 h-4 text-emerald-600"></i>
+                <h4>Strict 10-Column Schema Specification</h4>
+              </div>
+              <p class="text-xs text-slate-500 mb-3">
+                All uploaded datasets are strictly verified against the immutable Karnataka transport source order. Extra or renamed columns are safely rejected.
+              </p>
+              <div class="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                <ol class="text-[11px] text-slate-700 space-y-1.5 list-decimal list-inside font-mono">
+                  <li><span class="font-bold text-govNavy">Waybill Number</span> <span class="text-slate-400">(Duty/Trip)</span></li>
+                  <li><span class="font-bold text-govNavy">Ticket Number</span> <span class="text-slate-400">(Transaction)</span></li>
+                  <li><span class="font-bold text-govNavy">From Stop</span> <span class="text-slate-400">(Origin)</span></li>
+                  <li><span class="font-bold text-govNavy">To Stop</span> <span class="text-slate-400">(Destination)</span></li>
+                  <li><span class="font-bold text-govNavy">Date</span> <span class="text-slate-400">(Operational Date)</span></li>
+                  <li><span class="font-bold text-govNavy">Time</span> <span class="text-slate-400">(HH:MM:SS)</span></li>
+                  <li><span class="font-bold text-govNavy">Total Psgr</span> <span class="text-slate-400">(Quantity)</span></li>
+                  <li><span class="font-bold text-govNavy">Coll Amt</span> <span class="text-slate-400">(Fare Collected)</span></li>
+                  <li><span class="font-bold text-govNavy">Uncoll Amt</span> <span class="text-slate-400">(Concession/Pending)</span></li>
+                  <li><span class="font-bold text-govNavy">Unnamed: 9</span> <span class="text-slate-400">(Preserved Col 10)</span></li>
+                </ol>
+              </div>
+            </div>
+
+            <div class="text-[11px] text-slate-500 border-t pt-3 flex items-center gap-1.5">
+              <i data-lucide="lock" class="w-3.5 h-3.5 text-amber-600"></i>
+              <span>Original uploaded files are preserved unmodified in byte-exact storage.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Operational Capabilities (What users can do after upload) -->
+        <div class="space-y-4">
+          <div>
+            <h3 class="text-base font-bold text-govNavy">Platform Capabilities & Analytics Modules</h3>
+            <p class="text-xs text-slate-500">Upon dataset upload or activation, SmartBus immediately computes verified transport intelligence across 11 modules.</p>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <!-- Feature 1 -->
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 hover:border-govNavy/40 transition">
+              <div class="w-9 h-9 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center mb-3">
+                <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+              </div>
+              <h4 class="text-sm font-bold text-slate-900 mb-1">Executive Overview & 8 Core KPIs</h4>
+              <p class="text-xs text-slate-600 leading-relaxed">
+                Aggregates total transactions, passenger quantity, collected vs uncollected revenue, distinct waybills, and fleet quality metrics.
+              </p>
+            </div>
+
+            <!-- Feature 2 -->
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 hover:border-govNavy/40 transition">
+              <div class="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center mb-3">
+                <i data-lucide="users" class="w-5 h-5"></i>
+              </div>
+              <h4 class="text-sm font-bold text-slate-900 mb-1">Passenger & Ticket Distribution</h4>
+              <p class="text-xs text-slate-600 leading-relaxed">
+                Separates distinct ticket counts from actual passenger volume. Evaluates single vs group tickets and terminal boarding volumes.
+              </p>
+            </div>
+
+            <!-- Feature 3 -->
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 hover:border-govNavy/40 transition">
+              <div class="w-9 h-9 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center mb-3">
+                <i data-lucide="map-pin" class="w-5 h-5"></i>
+              </div>
+              <h4 class="text-sm font-bold text-slate-900 mb-1">Origin–Destination (OD) Intelligence</h4>
+              <p class="text-xs text-slate-600 leading-relaxed">
+                Computes high-volume passenger travel corridors, transit interchange density, and net terminal passenger balances (departures vs arrivals).
+              </p>
+            </div>
+
+            <!-- Feature 4 -->
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 hover:border-govNavy/40 transition">
+              <div class="w-9 h-9 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center mb-3">
+                <i data-lucide="clock" class="w-5 h-5"></i>
+              </div>
+              <h4 class="text-sm font-bold text-slate-900 mb-1">Time & Dynamic Peak Detection</h4>
+              <p class="text-xs text-slate-600 leading-relaxed">
+                Automatically identifies peak transaction and passenger hours, top 3-hour morning/evening operational windows, and hourly trends.
+              </p>
+            </div>
+
+            <!-- Feature 5 -->
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 hover:border-govNavy/40 transition">
+              <div class="w-9 h-9 rounded-lg bg-rose-50 text-rose-700 flex items-center justify-center mb-3">
+                <i data-lucide="sparkles" class="w-5 h-5 text-amber-500"></i>
+              </div>
+              <h4 class="text-sm font-bold text-slate-900 mb-1">5 Intelligent AI & Statistical Engines</h4>
+              <p class="text-xs text-slate-600 leading-relaxed">
+                Automated explainable insights, statistical vs data quality anomaly detection, governed forecasting, and evidence-based recommendations.
+              </p>
+            </div>
+
+            <!-- Feature 6 -->
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 hover:border-govNavy/40 transition">
+              <div class="w-9 h-9 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center mb-3">
+                <i data-lucide="file-check" class="w-5 h-5"></i>
+              </div>
+              <h4 class="text-sm font-bold text-slate-900 mb-1">Certified Exports & Ask SmartBus</h4>
+              <p class="text-xs text-slate-600 leading-relaxed">
+                Export verified 10-column CSV, OD matrix, or PDF briefings, and ask natural language questions with zero hallucinated numbers.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================================================== -->
+      <!-- TAB 1: EXECUTIVE OVERVIEW                                 -->
+      <!-- ======================================================== -->
+      <section id="tab-executive-overview" class="tab-content hidden space-y-6">
+        <div>
+          <h2 class="text-xl font-bold text-govNavy">Executive Operational Overview</h2>
+          <p class="text-xs text-slate-500">Centralized metrics aggregated from validated ticketing transactions.</p>
+        </div>
+
+        <!-- Empty State Container -->
+        <div id="executive-empty" class="bg-white p-10 rounded-xl shadow-sm border border-slate-200 text-center space-y-4">
+          <div class="w-16 h-16 rounded-full bg-blue-50 text-govNavy flex items-center justify-center mx-auto shadow-inner">
+            <i data-lucide="layout-dashboard" class="w-8 h-8 text-govNavy"></i>
+          </div>
+          <div class="max-w-md mx-auto space-y-1">
+            <h3 class="text-base font-bold text-slate-800">No Active Dataset Loaded</h3>
+            <p class="text-xs text-slate-500 leading-relaxed">
+              Executive overview requires an active ticketing dataset. Upload a verified 10-column Excel or CSV file to immediately populate executive KPIs and charts.
+            </p>
+          </div>
+          <div class="flex items-center justify-center gap-3 pt-2">
+            <button onclick="triggerUniversalUpload()" class="bg-govNavy hover:bg-govNavyLight text-white text-xs font-semibold px-4 py-2 rounded-lg transition shadow-sm flex items-center gap-1.5">
+              <i data-lucide="upload" class="w-3.5 h-3.5 text-amber-400"></i>
+              <span>Upload Dataset</span>
+            </button>
+            <button onclick="switchTab('dataset-management')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-4 py-2 rounded-lg transition border border-slate-300">
+              Select from Repository
+            </button>
+          </div>
+        </div>
+
+        <!-- Active Data Content -->
+        <div id="executive-content" class="hidden space-y-6">
+          <!-- 8 Core Executive KPI Cards (FR-03) -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Total Records -->
+            <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200">
+              <div class="flex items-center justify-between text-slate-500 mb-1">
+                <span class="text-xs font-semibold uppercase tracking-wider">Ticket Transactions</span>
+                <i data-lucide="ticket" class="w-4 h-4 text-blue-600"></i>
+              </div>
+              <div class="text-2xl font-bold text-slate-900" id="kpi-total-records">--</div>
+              <div class="text-[11px] text-slate-400 mt-1 flex items-center justify-between">
+                <span>Distinct Tickets:</span>
+                <span class="font-semibold text-slate-700" id="kpi-distinct-tickets">--</span>
+              </div>
+            </div>
+
+            <!-- Recorded Passenger Qty -->
+            <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200">
+              <div class="flex items-center justify-between text-slate-500 mb-1">
+                <span class="text-xs font-semibold uppercase tracking-wider">Recorded Passenger Qty</span>
+                <i data-lucide="users" class="w-4 h-4 text-emerald-600"></i>
+              </div>
+              <div class="text-2xl font-bold text-emerald-700" id="kpi-passenger-quantity">--</div>
+              <div class="text-[11px] text-slate-400 mt-1 flex items-center justify-between">
+                <span>Avg psgr / ticket:</span>
+                <span class="font-semibold text-slate-700" id="kpi-avg-psgr-ticket">--</span>
+              </div>
+            </div>
+
+            <!-- Recorded Collection -->
+            <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200">
+              <div class="flex items-center justify-between text-slate-500 mb-1">
+                <span class="text-xs font-semibold uppercase tracking-wider">Recorded Collection (Coll Amt)</span>
+                <i data-lucide="indian-rupee" class="w-4 h-4 text-amber-600"></i>
+              </div>
+              <div class="text-2xl font-bold text-amber-700" id="kpi-collection-amount">--</div>
+              <div class="text-[11px] text-slate-400 mt-1 flex items-center justify-between">
+                <span>Avg / ticket:</span>
+                <span class="font-semibold text-slate-700" id="kpi-avg-fare-ticket">--</span>
+              </div>
+            </div>
+
+            <!-- Recorded Uncollected -->
+            <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200">
+              <div class="flex items-center justify-between text-slate-500 mb-1">
+                <span class="text-xs font-semibold uppercase tracking-wider">Recorded Uncollected (Uncoll Amt)</span>
+                <i data-lucide="alert-circle" class="w-4 h-4 text-rose-600"></i>
+              </div>
+              <div class="text-2xl font-bold text-rose-700" id="kpi-uncollected-amount">--</div>
+              <div class="text-[11px] text-slate-400 mt-1 flex items-center justify-between">
+                <span>Ratio:</span>
+                <span class="font-semibold text-slate-700" id="kpi-uncoll-pct">--</span>
+              </div>
+            </div>
+
+            <!-- Distinct Waybills -->
+            <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200">
+              <div class="flex items-center justify-between text-slate-500 mb-1">
+                <span class="text-xs font-semibold uppercase tracking-wider">Active Waybills</span>
+                <i data-lucide="clipboard-list" class="w-4 h-4 text-purple-600"></i>
+              </div>
+              <div class="text-2xl font-bold text-slate-900" id="kpi-distinct-waybills">--</div>
+              <div class="text-[11px] text-slate-400 mt-1">Fleet duty assignments</div>
+            </div>
+
+            <!-- Distinct Origins -->
+            <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200">
+              <div class="flex items-center justify-between text-slate-500 mb-1">
+                <span class="text-xs font-semibold uppercase tracking-wider">Origin Terminals</span>
+                <i data-lucide="navigation" class="w-4 h-4 text-indigo-600"></i>
+              </div>
+              <div class="text-2xl font-bold text-slate-900" id="kpi-distinct-origins">--</div>
+              <div class="text-[11px] text-slate-400 mt-1">From Stop categories</div>
+            </div>
+
+            <!-- Distinct Destinations -->
+            <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200">
+              <div class="flex items-center justify-between text-slate-500 mb-1">
+                <span class="text-xs font-semibold uppercase tracking-wider">Destination Stops</span>
+                <i data-lucide="map-pin" class="w-4 h-4 text-teal-600"></i>
+              </div>
+              <div class="text-2xl font-bold text-slate-900" id="kpi-distinct-destinations">--</div>
+              <div class="text-[11px] text-slate-400 mt-1">To Stop categories</div>
+            </div>
+
+            <!-- Data Quality Score -->
+            <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200">
+              <div class="flex items-center justify-between text-slate-500 mb-1">
+                <span class="text-xs font-semibold uppercase tracking-wider">Data Quality Score</span>
+                <i data-lucide="shield-check" class="w-4 h-4 text-emerald-600"></i>
+              </div>
+              <div class="text-2xl font-bold text-emerald-600" id="kpi-quality-score">--</div>
+              <div class="text-[11px] text-slate-400 mt-1">Verified 10-Col Schema</div>
+            </div>
+          </div>
+
+          <!-- Charts Grid -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white p-5 rounded-lg shadow-sm border border-slate-200">
+              <h3 class="text-sm font-bold text-govNavy mb-3 flex items-center gap-2">
+                <i data-lucide="clock" class="w-4 h-4 text-govGold"></i>
+                Hourly Passenger & Collection Profile
+              </h3>
+              <div class="h-64">
+                <canvas id="overviewHourlyChart"></canvas>
+              </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-lg shadow-sm border border-slate-200">
+              <h3 class="text-sm font-bold text-govNavy mb-3 flex items-center gap-2">
+                <i data-lucide="pie-chart" class="w-4 h-4 text-govGold"></i>
+                Ticket Collection Brackets
+              </h3>
+              <div class="h-64">
+                <canvas id="overviewBracketChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Top Corridors Preview -->
+          <div class="bg-white p-5 rounded-lg shadow-sm border border-slate-200">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-sm font-bold text-govNavy flex items-center gap-2">
+                <i data-lucide="trending-up" class="w-4 h-4 text-govGold"></i>
+                Top High-Demand Origin–Destination Corridors
+              </h3>
+              <button onclick="switchTab('od-intelligence')" class="text-xs text-blue-600 hover:underline">View All Corridors &rarr;</button>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs text-slate-700 border-collapse">
+                <thead>
+                  <tr class="bg-slate-100 text-slate-600 uppercase text-[10px] tracking-wider border-b border-slate-200">
+                    <th class="p-2.5">Corridor (Movement)</th>
+                    <th class="p-2.5 text-right">Transactions</th>
+                    <th class="p-2.5 text-right">Recorded Passengers</th>
+                    <th class="p-2.5 text-right">Recorded Coll Amt</th>
+                    <th class="p-2.5 text-right">Avg Coll/Passenger</th>
+                  </tr>
+                </thead>
+                <tbody id="overview-od-table-body" class="divide-y divide-slate-100">
+                  <tr><td colspan="5" class="p-3 text-center text-slate-400">Loading...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================================================== -->
+      <!-- TAB 2: DATASET MANAGEMENT & QUALITY REPORT               -->
+      <!-- ======================================================== -->
+      <section id="tab-dataset-management" class="tab-content hidden space-y-6">
+        <div>
+          <h2 class="text-xl font-bold text-govNavy">Dataset Management & Schema Quality Inspector</h2>
+          <p class="text-xs text-slate-500">Non-negotiable 10-column schema validation, multi-dataset repository, and quality audit.</p>
+        </div>
+
+        <!-- Datasets Repository Table -->
+        <div class="bg-white p-5 rounded-lg shadow-sm border border-slate-200">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-bold text-govNavy flex items-center gap-2">
+              <i data-lucide="layers" class="w-4 h-4 text-govGold"></i>
+              Uploaded Datasets Repository
+            </h3>
+            <span class="text-xs text-slate-400">Select active dataset for real-time analysis</span>
+          </div>
+          <div class="overflow-x-auto max-h-52 overflow-y-auto custom-scrollbar">
+            <table class="w-full text-left text-xs text-slate-700 border-collapse">
+              <thead>
+                <tr class="bg-slate-100 text-slate-600 uppercase text-[10px] tracking-wider border-b">
+                  <th class="p-2.5">Dataset Filename</th>
+                  <th class="p-2.5">Dataset Type</th>
+                  <th class="p-2.5 text-right">Records</th>
+                  <th class="p-2.5 text-right">Date(s)</th>
+                  <th class="p-2.5 text-center">Status / Action</th>
+                </tr>
+              </thead>
+              <tbody id="dataset-repo-table-body" class="divide-y divide-slate-100">
+                <tr><td colspan="5" class="p-3 text-center text-slate-400">Loading repository...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- Upload Box -->
+          <div class="bg-white p-5 rounded-lg shadow-sm border border-slate-200 lg:col-span-1">
+            <h3 class="text-sm font-bold text-govNavy mb-2 flex items-center gap-2">
+              <i data-lucide="upload-cloud" class="w-4 h-4 text-govGold"></i>
+              Upload Actual Transport Dataset
+            </h3>
+            <p class="text-xs text-slate-500 mb-4">Upload department Excel (.xlsx/.xls) or CSV files.</p>
+            
+            <div id="drop-zone" class="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-govNavy transition cursor-pointer bg-slate-50">
+              <i data-lucide="file-spreadsheet" class="w-8 h-8 text-slate-400 mx-auto mb-2"></i>
+              <p class="text-xs font-semibold text-slate-700">Click to browse or drop file here</p>
+              <p class="text-[10px] text-slate-400 mt-1">Must strictly follow exact 10-column schema</p>
+              <input type="file" id="file-input" class="hidden" accept=".xlsx,.xls,.csv" onchange="handleFileUpload(this.files[0])">
+            </div>
+
+            <div id="upload-status" class="mt-3 text-xs hidden"></div>
+
+            <div class="mt-6 pt-4 border-t border-slate-200">
+              <h4 class="text-xs font-bold text-slate-700 mb-2">Strict 10-Column Schema (Order 1-10)</h4>
+              <ol class="text-[11px] text-slate-500 space-y-0.5 list-decimal list-inside font-mono">
+                <li>Waybill Number</li>
+                <li>Ticket Number</li>
+                <li>From Stop</li>
+                <li>To Stop</li>
+                <li>Date</li>
+                <li>Time</li>
+                <li>Total Psgr</li>
+                <li>Coll Amt</li>
+                <li>Uncoll Amt</li>
+                <li>Unnamed: 9</li>
+              </ol>
+            </div>
+          </div>
+
+          <!-- Quality Audit Report Card -->
+          <div class="bg-white p-5 rounded-lg shadow-sm border border-slate-200 lg:col-span-2 space-y-4">
+            <div class="flex items-center justify-between border-b pb-3">
+              <div>
+                <h3 class="text-sm font-bold text-govNavy flex items-center gap-2">
+                  <i data-lucide="clipboard-check" class="w-4 h-4 text-emerald-600"></i>
+                  Data Quality & Schema Audit Report
+                </h3>
+                <span class="text-[11px] text-slate-400" id="quality-filename">No Active Dataset</span>
+              </div>
+              <div class="text-right">
+                <span class="text-xs text-slate-400 block">Overall Integrity Score</span>
+                <span class="text-xl font-bold text-emerald-600" id="quality-score-badge">--%</span>
+              </div>
+            </div>
+
+            <!-- Diagnostics Metrics Grid -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+              <div class="bg-slate-50 p-2.5 rounded border border-slate-100">
+                <span class="text-slate-400 text-[10px] block uppercase">Total Records</span>
+                <span class="font-bold text-slate-800 text-sm" id="diag-total-records">--</span>
+              </div>
+              <div class="bg-slate-50 p-2.5 rounded border border-slate-100">
+                <span class="text-slate-400 text-[10px] block uppercase">Missing Origins</span>
+                <span class="font-bold text-rose-600 text-sm" id="diag-missing-origins">--</span>
+              </div>
+              <div class="bg-slate-50 p-2.5 rounded border border-slate-100">
+                <span class="text-slate-400 text-[10px] block uppercase">Missing Destinations</span>
+                <span class="font-bold text-rose-600 text-sm" id="diag-missing-destinations">--</span>
+              </div>
+              <div class="bg-slate-50 p-2.5 rounded border border-slate-100">
+                <span class="text-slate-400 text-[10px] block uppercase">Repeated Tickets</span>
+                <span class="font-bold text-amber-600 text-sm" id="diag-repeated-tickets">--</span>
+              </div>
+            </div>
+
+            <!-- Unresolved Column 10 Section (Section 5.2) -->
+            <div class="bg-amber-50 border border-amber-200 p-3.5 rounded text-xs">
+              <div class="flex items-center gap-2 font-semibold text-amber-900 mb-1">
+                <i data-lucide="help-circle" class="w-4 h-4 text-amber-700"></i>
+                <span>Source Column 10: 'Unnamed: 9' Audit</span>
+              </div>
+              <p class="text-slate-600 text-[11px]">
+                Treating tenth column as an unresolved source field per PRD 5.2. Non-null values: 
+                <strong id="col10-nonnulls" class="text-slate-900">--</strong> | Unique entries: 
+                <strong id="col10-unique" class="text-slate-900">--</strong>. Preserved without renaming or speculative interpretation.
+              </p>
+            </div>
+
+            <!-- Warning Log List -->
+            <div>
+              <h4 class="text-xs font-bold text-slate-700 mb-2">Active Validation Warnings</h4>
+              <div id="quality-warnings-list" class="space-y-1.5 max-h-36 overflow-y-auto custom-scrollbar">
+                <div class="text-xs text-slate-400 italic">No warnings loaded.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Transformation Audit Log -->
+        <div class="bg-white p-5 rounded-lg shadow-sm border border-slate-200">
+          <h3 class="text-sm font-bold text-govNavy mb-3 flex items-center gap-2">
+            <i data-lucide="history" class="w-4 h-4 text-govGold"></i>
+            Non-Destructive Transformation Audit Trail
+          </h3>
+          <div class="overflow-x-auto max-h-48 overflow-y-auto custom-scrollbar">
+            <table class="w-full text-left text-xs text-slate-700 border-collapse">
+              <thead>
+                <tr class="bg-slate-100 text-slate-600 uppercase text-[10px] tracking-wider border-b">
+                  <th class="p-2">Event</th>
+                  <th class="p-2">Description</th>
+                  <th class="p-2 text-right">Records Affected</th>
+                  <th class="p-2 text-right">Timestamp</th>
+                </tr>
+              </thead>
+              <tbody id="audit-log-table-body" class="divide-y divide-slate-100">
+                <tr><td colspan="4" class="p-2 text-center text-slate-400">Loading audit trail...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================================================== -->
+      <!-- TAB 3: PASSENGER & TICKET ANALYTICS                      -->
+      <!-- ======================================================== -->
+      <section id="tab-passenger-analytics" class="tab-content hidden space-y-6">
+        <div>
+          <h2 class="text-xl font-bold text-govNavy">Passenger & Ticket Distribution Analytics (FR-04)</h2>
+          <p class="text-xs text-slate-500">Separates transaction count from recorded passenger volume.</p>
+        </div>
+
+        <!-- Empty State Container -->
+        <div id="passenger-empty" class="bg-white p-10 rounded-xl shadow-sm border border-slate-200 text-center space-y-4">
+          <div class="w-16 h-16 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center mx-auto shadow-inner">
+            <i data-lucide="users" class="w-8 h-8"></i>
+          </div>
+          <div class="max-w-md mx-auto space-y-1">
+            <h3 class="text-base font-bold text-slate-800">Passenger Analytics Awaiting Dataset</h3>
+            <p class="text-xs text-slate-500 leading-relaxed">
+              Once an Excel or CSV ticketing dataset is uploaded, this module computes passenger volume distributions, multi-passenger ticket groupings, and peak boarding/alighting terminal rankings.
+            </p>
+          </div>
+          <div class="flex items-center justify-center gap-3 pt-2">
+            <button onclick="triggerUniversalUpload()" class="bg-govNavy hover:bg-govNavyLight text-white text-xs font-semibold px-4 py-2 rounded-lg transition shadow-sm flex items-center gap-1.5">
+              <i data-lucide="upload" class="w-3.5 h-3.5 text-amber-400"></i>
+              <span>Upload Dataset</span>
+            </button>
+            <button onclick="switchTab('dataset-management')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-4 py-2 rounded-lg transition border border-slate-300">
+              Select from Repository
+            </button>
+          </div>
+        </div>
+
+        <!-- Active Data Content -->
+        <div id="passenger-content" class="hidden space-y-6">
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white p-5 rounded-lg shadow-sm border border-slate-200">
+              <h3 class="text-sm font-bold text-govNavy mb-3">Passenger Quantity Per Ticket Distribution</h3>
+              <div class="h-64">
+                <canvas id="passengerDistChart"></canvas>
+              </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-lg shadow-sm border border-slate-200">
+              <h3 class="text-sm font-bold text-govNavy mb-3">Top Origin Terminals by Recorded Passenger Volume</h3>
+              <div class="h-64">
+                <canvas id="topOriginsChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white p-5 rounded-lg shadow-sm border border-slate-200">
+            <h3 class="text-sm font-bold text-govNavy mb-3">Top Destination Stops by Recorded Passenger Volume</h3>
+            <div class="h-64">
+              <canvas id="topDestinationsChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================================================== -->
+      <!-- TAB 4: REVENUE & COLLECTION ANALYTICS                    -->
+      <!-- ======================================================== -->
+      <section id="tab-revenue-analytics" class="tab-content hidden space-y-6">
+        <div>
+          <h2 class="text-xl font-bold text-govNavy">Collection Analytics (FR-05)</h2>
+          <p class="text-xs text-slate-500">Collected (Coll Amt) vs Uncollected (Uncoll Amt) reconciliation and waybill metrics.</p>
+        </div>
+
+        <!-- Empty State Container -->
+        <div id="revenue-empty" class="bg-white p-10 rounded-xl shadow-sm border border-slate-200 text-center space-y-4">
+          <div class="w-16 h-16 rounded-full bg-amber-50 text-amber-700 flex items-center justify-center mx-auto shadow-inner">
+            <i data-lucide="indian-rupee" class="w-8 h-8"></i>
+          </div>
+          <div class="max-w-md mx-auto space-y-1">
+            <h3 class="text-base font-bold text-slate-800">Collection Analytics Awaiting Dataset</h3>
+            <p class="text-xs text-slate-500 leading-relaxed">
+              Upload ticketing data to unlock fare reconciliation: realized collection amounts (Coll Amt) vs uncollected amounts (Uncoll Amt) across duty waybills and ticket price brackets.
+            </p>
+          </div>
+          <div class="flex items-center justify-center gap-3 pt-2">
+            <button onclick="triggerUniversalUpload()" class="bg-govNavy hover:bg-govNavyLight text-white text-xs font-semibold px-4 py-2 rounded-lg transition shadow-sm flex items-center gap-1.5">
+              <i data-lucide="upload" class="w-3.5 h-3.5 text-amber-400"></i>
+              <span>Upload Dataset</span>
+            </button>
+            <button onclick="switchTab('dataset-management')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-4 py-2 rounded-lg transition border border-slate-300">
+              Select from Repository
+            </button>
+          </div>
+        </div>
+
+        <!-- Active Data Content -->
+        <div id="revenue-content" class="hidden space-y-6">
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white p-5 rounded-lg shadow-sm border border-slate-200">
+              <h3 class="text-sm font-bold text-govNavy mb-3">Top Waybills by Realized Collection Amount</h3>
+              <div class="h-64">
+                <canvas id="waybillRevenueChart"></canvas>
+              </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-lg shadow-sm border border-slate-200">
+              <h3 class="text-sm font-bold text-govNavy mb-3">Recorded Uncollected Amount by Waybill</h3>
+              <div class="h-64">
+                <canvas id="waybillUncollChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================================================== -->
+      <!-- TAB 5: ORIGIN-DESTINATION INTELLIGENCE                   -->
+      <!-- ======================================================== -->
+      <section id="tab-od-intelligence" class="tab-content hidden space-y-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-xl font-bold text-govNavy">Origin–Destination (OD) Intelligence (FR-06)</h2>
+            <p class="text-xs text-slate-500">Transit movements, volume corridors, and terminal passenger flows.</p>
+          </div>
+          <a href="/api/export/od-csv" target="_blank" onclick="return handleExportClick(event)" class="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3 py-1.5 rounded transition border border-slate-300">
+            <i data-lucide="download" class="w-3.5 h-3.5"></i>
+            <span>Export OD Matrix (CSV)</span>
+          </a>
+        </div>
+
+        <!-- Empty State Container -->
+        <div id="od-empty" class="bg-white p-10 rounded-xl shadow-sm border border-slate-200 text-center space-y-4">
+          <div class="w-16 h-16 rounded-full bg-teal-50 text-teal-700 flex items-center justify-center mx-auto shadow-inner">
+            <i data-lucide="map-pin" class="w-8 h-8"></i>
+          </div>
+          <div class="max-w-md mx-auto space-y-1">
+            <h3 class="text-base font-bold text-slate-800">Origin–Destination Intelligence Awaiting Dataset</h3>
+            <p class="text-xs text-slate-500 leading-relaxed">
+              Discovers high-density transit corridors, passenger interchange density, and terminal net passenger flows (departures minus arrivals) across the Karnataka bus network.
+            </p>
+          </div>
+          <div class="flex items-center justify-center gap-3 pt-2">
+            <button onclick="triggerUniversalUpload()" class="bg-govNavy hover:bg-govNavyLight text-white text-xs font-semibold px-4 py-2 rounded-lg transition shadow-sm flex items-center gap-1.5">
+              <i data-lucide="upload" class="w-3.5 h-3.5 text-amber-400"></i>
+              <span>Upload Dataset</span>
+            </button>
+            <button onclick="switchTab('dataset-management')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-4 py-2 rounded-lg transition border border-slate-300">
+              Select from Repository
+            </button>
+          </div>
+        </div>
+
+        <!-- Active Data Content -->
+        <div id="od-content" class="hidden space-y-6">
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- High Volume OD Table -->
+            <div class="bg-white p-5 rounded-lg shadow-sm border border-slate-200">
+              <h3 class="text-sm font-bold text-govNavy mb-3 flex items-center gap-2">
+                <i data-lucide="arrow-up-right" class="w-4 h-4 text-emerald-600"></i>
+                High-Volume Corridors (Top Demand)
+              </h3>
+              <div class="overflow-x-auto max-h-80 overflow-y-auto custom-scrollbar">
+                <table class="w-full text-left text-xs text-slate-700 border-collapse">
+                  <thead>
+                    <tr class="bg-slate-100 text-slate-600 uppercase text-[10px] tracking-wider border-b">
+                      <th class="p-2">Movement</th>
+                      <th class="p-2 text-right">Psgrs</th>
+                      <th class="p-2 text-right">Recorded Coll Amt</th>
+                    </tr>
+                  </thead>
+                  <tbody id="od-high-table" class="divide-y divide-slate-100">
+                    <tr><td colspan="3" class="p-2 text-center text-slate-400">Loading...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Net Terminal Flow Table -->
+            <div class="bg-white p-5 rounded-lg shadow-sm border border-slate-200">
+              <h3 class="text-sm font-bold text-govNavy mb-3 flex items-center gap-2">
+                <i data-lucide="repeat" class="w-4 h-4 text-govGold"></i>
+                Terminal Passenger Net Flow (Departures vs Arrivals)
+              </h3>
+              <div class="overflow-x-auto max-h-80 overflow-y-auto custom-scrollbar">
+                <table class="w-full text-left text-xs text-slate-700 border-collapse">
+                  <thead>
+                    <tr class="bg-slate-100 text-slate-600 uppercase text-[10px] tracking-wider border-b">
+                      <th class="p-2">Terminal</th>
+                      <th class="p-2 text-right">Departed</th>
+                      <th class="p-2 text-right">Arrived</th>
+                      <th class="p-2 text-right">Net Flow</th>
+                    </tr>
+                  </thead>
+                  <tbody id="od-net-table" class="divide-y divide-slate-100">
+                    <tr><td colspan="4" class="p-2 text-center text-slate-400">Loading...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================================================== -->
+      <!-- TAB 6: TIME-BASED ANALYTICS                              -->
+      <!-- ======================================================== -->
+      <section id="tab-time-analytics" class="tab-content hidden space-y-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-xl font-bold text-govNavy">Time-Based Analytics (FR-07)</h2>
+            <p class="text-xs text-slate-500">Hourly ticket volume, dynamic peak detection, and trough analysis.</p>
+          </div>
+          <a href="/api/export/hourly-csv" target="_blank" onclick="return handleExportClick(event)" class="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3 py-1.5 rounded transition border border-slate-300">
+            <i data-lucide="download" class="w-3.5 h-3.5"></i>
+            <span>Export Hourly CSV</span>
+          </a>
+        </div>
+
+        <!-- Empty State Container -->
+        <div id="time-empty" class="bg-white p-10 rounded-xl shadow-sm border border-slate-200 text-center space-y-4">
+          <div class="w-16 h-16 rounded-full bg-purple-50 text-purple-700 flex items-center justify-center mx-auto shadow-inner">
+            <i data-lucide="clock" class="w-8 h-8"></i>
+          </div>
+          <div class="max-w-md mx-auto space-y-1">
+            <h3 class="text-base font-bold text-slate-800">Time-Based Analytics Awaiting Dataset</h3>
+            <p class="text-xs text-slate-500 leading-relaxed">
+              Dynamically analyzes hourly fleet ticketing trends, identifying primary 3-hour morning and evening peak windows based on verified passenger concentrations.
+            </p>
+          </div>
+          <div class="flex items-center justify-center gap-3 pt-2">
+            <button onclick="triggerUniversalUpload()" class="bg-govNavy hover:bg-govNavyLight text-white text-xs font-semibold px-4 py-2 rounded-lg transition shadow-sm flex items-center gap-1.5">
+              <i data-lucide="upload" class="w-3.5 h-3.5 text-amber-400"></i>
+              <span>Upload Dataset</span>
+            </button>
+            <button onclick="switchTab('dataset-management')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-4 py-2 rounded-lg transition border border-slate-300">
+              Select from Repository
+            </button>
+          </div>
+        </div>
+
+        <!-- Active Data Content -->
+        <div id="time-content" class="hidden space-y-6">
+          <!-- Peak Summary Cards -->
+          <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200">
+              <span class="text-xs font-semibold text-slate-500 block">Peak Transaction Hour</span>
+              <span class="text-xl font-bold text-govNavy" id="time-peak-tx">--</span>
+              <p class="text-[10px] text-slate-400 mt-1">Single hour with highest ticket transaction count</p>
+            </div>
+            <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200">
+              <span class="text-xs font-semibold text-slate-500 block">Peak Passenger Hour</span>
+              <span class="text-xl font-bold text-emerald-600" id="time-peak-psgr">--</span>
+              <p class="text-[10px] text-slate-400 mt-1">Single hour with highest recorded passenger volume</p>
+            </div>
+            <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200">
+              <span class="text-xs font-semibold text-slate-500 block" id="time-morning-title">Morning Window</span>
+              <span class="text-xl font-bold text-amber-600" id="time-morning-psgr">--</span>
+              <p class="text-[10px] text-slate-400 mt-1" id="time-morning-desc">Top 3-hr morning demand window</p>
+            </div>
+            <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200">
+              <span class="text-xs font-semibold text-slate-500 block" id="time-evening-title">Evening Window</span>
+              <span class="text-xl font-bold text-amber-600" id="time-evening-psgr">--</span>
+              <p class="text-[10px] text-slate-400 mt-1" id="time-evening-desc">Top 3-hr evening demand window</p>
+            </div>
+          </div>
+
+          <!-- Primary Dynamic Peak Explanation Card -->
+          <div id="primary-peak-card" class="bg-amber-50 border border-amber-200 p-4 rounded-lg flex items-start gap-3">
+            <i data-lucide="info" class="w-5 h-5 text-amber-700 flex-shrink-0 mt-0.5"></i>
+            <div>
+              <h4 class="text-xs font-bold text-amber-900" id="primary-peak-heading">Primary 3-Hour Peak Window: --</h4>
+              <p class="text-xs text-amber-800 mt-0.5" id="primary-peak-explanation">Dynamic window selection is based strictly on recorded passenger quantity across the dataset.</p>
+            </div>
+          </div>
+
+          <div class="bg-white p-5 rounded-lg shadow-sm border border-slate-200">
+            <h3 class="text-sm font-bold text-govNavy mb-3">24-Hour Passenger & Transaction Trend</h3>
+            <div class="h-80">
+              <canvas id="hourlyDetailChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================================================== -->
+      <!-- TAB 7: WAYBILL ANALYTICS                                 -->
+      <!-- ======================================================== -->
+      <section id="tab-waybill-analytics" class="tab-content hidden space-y-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-xl font-bold text-govNavy">Waybill Operational Analytics (FR-08)</h2>
+            <p class="text-xs text-slate-500">Waybill duty metrics without unsubstantiated vehicle or driver assumptions.</p>
+          </div>
+          <a href="/api/export/waybill-csv" target="_blank" onclick="return handleExportClick(event)" class="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3 py-1.5 rounded transition border border-slate-300">
+            <i data-lucide="download" class="w-3.5 h-3.5"></i>
+            <span>Export Waybill Data (CSV)</span>
+          </a>
+        </div>
+
+        <!-- Empty State Container -->
+        <div id="waybill-empty" class="bg-white p-10 rounded-xl shadow-sm border border-slate-200 text-center space-y-4">
+          <div class="w-16 h-16 rounded-full bg-slate-100 text-govNavy flex items-center justify-center mx-auto shadow-inner">
+            <i data-lucide="clipboard-list" class="w-8 h-8"></i>
+          </div>
+          <div class="max-w-md mx-auto space-y-1">
+            <h3 class="text-base font-bold text-slate-800">Waybill Duty Metrics Awaiting Dataset</h3>
+            <p class="text-xs text-slate-500 leading-relaxed">
+              Audits individual bus waybill operational spans, duty hour coverage, transactions per waybill, and collection figures without speculative vehicle identities.
+            </p>
+          </div>
+          <div class="flex items-center justify-center gap-3 pt-2">
+            <button onclick="triggerUniversalUpload()" class="bg-govNavy hover:bg-govNavyLight text-white text-xs font-semibold px-4 py-2 rounded-lg transition shadow-sm flex items-center gap-1.5">
+              <i data-lucide="upload" class="w-3.5 h-3.5 text-amber-400"></i>
+              <span>Upload Dataset</span>
+            </button>
+            <button onclick="switchTab('dataset-management')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-4 py-2 rounded-lg transition border border-slate-300">
+              Select from Repository
+            </button>
+          </div>
+        </div>
+
+        <!-- Active Data Content -->
+        <div id="waybill-content" class="hidden space-y-6">
+          <div class="bg-white p-5 rounded-lg shadow-sm border border-slate-200">
+            <div class="overflow-x-auto max-h-96 overflow-y-auto custom-scrollbar">
+              <table class="w-full text-left text-xs text-slate-700 border-collapse">
+                <thead>
+                  <tr class="bg-slate-100 text-slate-600 uppercase text-[10px] tracking-wider border-b">
+                    <th class="p-2.5">Waybill #</th>
+                    <th class="p-2.5 text-right">Transactions</th>
+                    <th class="p-2.5 text-right">Recorded Psgrs</th>
+                    <th class="p-2.5 text-right">Recorded Coll Amt</th>
+                    <th class="p-2.5 text-right">Recorded Uncoll Amt</th>
+                    <th class="p-2.5 text-right">Active Hours</th>
+                    <th class="p-2.5 text-right">Operating Span</th>
+                  </tr>
+                </thead>
+                <tbody id="waybill-table-body" class="divide-y divide-slate-100">
+                  <tr><td colspan="7" class="p-3 text-center text-slate-400">Loading waybill records...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================================================== -->
+      <!-- TAB 8: INTELLIGENT INSIGHTS ENGINE                       -->
+      <!-- ======================================================== -->
+      <section id="tab-intelligent-insights" class="tab-content hidden space-y-6">
+        <div>
+          <h2 class="text-xl font-bold text-govNavy">Automated Insights Engine (FR-09)</h2>
+          <p class="text-xs text-slate-500">Explainable operational findings grounded strictly in verified mathematical calculations.</p>
+        </div>
+
+        <!-- Empty State Container -->
+        <div id="insights-empty" class="bg-white p-10 rounded-xl shadow-sm border border-slate-200 text-center space-y-4">
+          <div class="w-16 h-16 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mx-auto shadow-inner">
+            <i data-lucide="sparkles" class="w-8 h-8"></i>
+          </div>
+          <div class="max-w-md mx-auto space-y-1">
+            <h3 class="text-base font-bold text-slate-800">Automated Insights Awaiting Dataset</h3>
+            <p class="text-xs text-slate-500 leading-relaxed">
+              Synthesizes evidence-grounded operational findings with supporting metrics, analytical baselines, and data governance boundaries strictly derived from ticketing transactions.
+            </p>
+          </div>
+          <div class="flex items-center justify-center gap-3 pt-2">
+            <button onclick="triggerUniversalUpload()" class="bg-govNavy hover:bg-govNavyLight text-white text-xs font-semibold px-4 py-2 rounded-lg transition shadow-sm flex items-center gap-1.5">
+              <i data-lucide="upload" class="w-3.5 h-3.5 text-amber-400"></i>
+              <span>Upload Dataset</span>
+            </button>
+            <button onclick="switchTab('dataset-management')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-4 py-2 rounded-lg transition border border-slate-300">
+              Select from Repository
+            </button>
+          </div>
+        </div>
+
+        <!-- Active Data Content -->
+        <div id="insights-content" class="hidden space-y-4">
+          <div id="insights-container" class="space-y-4">
+            <div class="text-center p-6 text-slate-400">Loading automated findings...</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================================================== -->
+      <!-- TAB 9: ANOMALY DETECTION ENGINE                          -->
+      <!-- ======================================================== -->
+      <section id="tab-anomaly-detection" class="tab-content hidden space-y-6">
+        <div>
+          <h2 class="text-xl font-bold text-govNavy">Anomaly Detection Engine (FR-10)</h2>
+          <p class="text-xs text-slate-500">Distinguishes Data-Quality anomalies from Operational Statistical anomalies using IQR and Modified Z-Score.</p>
+        </div>
+
+        <!-- Empty State Container -->
+        <div id="anomaly-empty" class="bg-white p-10 rounded-xl shadow-sm border border-slate-200 text-center space-y-4">
+          <div class="w-16 h-16 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto shadow-inner">
+            <i data-lucide="alert-triangle" class="w-8 h-8"></i>
+          </div>
+          <div class="max-w-md mx-auto space-y-1">
+            <h3 class="text-base font-bold text-slate-800">Anomaly Detection Awaiting Dataset</h3>
+            <p class="text-xs text-slate-500 leading-relaxed">
+              Scans transactions using Interquartile Range (IQR) and Modified Z-Scores to separate Data Quality issues (uncollected amounts, missing stops) from genuine Operational Anomalies.
+            </p>
+          </div>
+          <div class="flex items-center justify-center gap-3 pt-2">
+            <button onclick="triggerUniversalUpload()" class="bg-govNavy hover:bg-govNavyLight text-white text-xs font-semibold px-4 py-2 rounded-lg transition shadow-sm flex items-center gap-1.5">
+              <i data-lucide="upload" class="w-3.5 h-3.5 text-amber-400"></i>
+              <span>Upload Dataset</span>
+            </button>
+            <button onclick="switchTab('dataset-management')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-4 py-2 rounded-lg transition border border-slate-300">
+              Select from Repository
+            </button>
+          </div>
+        </div>
+
+        <!-- Active Data Content -->
+        <div id="anomaly-content" class="hidden space-y-6">
+          <!-- Filter pills for anomaly types -->
+          <div class="flex items-center space-x-2">
+            <button onclick="filterAnomalies('ALL')" id="anom-btn-all" class="px-3 py-1 rounded text-xs font-semibold bg-govNavy text-white">All Anomalies</button>
+            <button onclick="filterAnomalies('Data Quality')" id="anom-btn-dq" class="px-3 py-1 rounded text-xs font-semibold bg-slate-200 text-slate-700 hover:bg-slate-300">Data Quality Only</button>
+            <button onclick="filterAnomalies('Operational Statistical')" id="anom-btn-stat" class="px-3 py-1 rounded text-xs font-semibold bg-slate-200 text-slate-700 hover:bg-slate-300">Operational Statistical Only</button>
+          </div>
+
+          <div id="anomalies-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="text-center p-6 text-slate-400 col-span-2">Scanning dataset for anomalies...</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================================================== -->
+      <!-- TAB 10: FORECASTING ENGINE                               -->
+      <!-- ======================================================== -->
+      <section id="tab-forecasting" class="tab-content hidden space-y-6">
+        <div>
+          <h2 class="text-xl font-bold text-govNavy">Revenue & Demand Forecasting Engine (FR-11)</h2>
+          <p class="text-xs text-slate-500">Multi-period trend forecasting subject to dataset governance rules.</p>
+        </div>
+
+        <!-- Empty State Container -->
+        <div id="forecasting-empty" class="bg-white p-10 rounded-xl shadow-sm border border-slate-200 text-center space-y-4">
+          <div class="w-16 h-16 rounded-full bg-cyan-50 text-cyan-600 flex items-center justify-center mx-auto shadow-inner">
+            <i data-lucide="trending-up" class="w-8 h-8"></i>
+          </div>
+          <div class="max-w-md mx-auto space-y-1">
+            <h3 class="text-base font-bold text-slate-800">Forecasting Engine Awaiting Dataset</h3>
+            <p class="text-xs text-slate-500 leading-relaxed">
+              Forecasting requires multi-day operational observations per strict product governance. Upload ticketing data to view historical governance eligibility or enable Solvathon simulation mode.
+            </p>
+          </div>
+          <div class="flex items-center justify-center gap-3 pt-2">
+            <button onclick="triggerUniversalUpload()" class="bg-govNavy hover:bg-govNavyLight text-white text-xs font-semibold px-4 py-2 rounded-lg transition shadow-sm flex items-center gap-1.5">
+              <i data-lucide="upload" class="w-3.5 h-3.5 text-amber-400"></i>
+              <span>Upload Dataset</span>
+            </button>
+            <button onclick="switchTab('dataset-management')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-4 py-2 rounded-lg transition border border-slate-300">
+              Select from Repository
+            </button>
+          </div>
+        </div>
+
+        <!-- Active Data Content -->
+        <div id="forecasting-content" class="hidden space-y-6">
+          <!-- Governance Eligibility Card -->
+          <div class="bg-amber-50 border-l-4 border-govGold p-4 rounded shadow-sm">
+            <div class="flex items-start gap-3">
+              <i data-lucide="shield-alert" class="w-5 h-5 text-govGold flex-shrink-0 mt-0.5"></i>
+              <div>
+                <h3 class="text-xs font-bold text-amber-900 uppercase tracking-wider">Product Governance Rule: Forecasting Eligibility</h3>
+                <p class="text-xs text-slate-700 mt-1 leading-relaxed" id="forecasting-governance-text">
+                  Checking historical data eligibility...
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Demonstration Mode Toggle -->
+          <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 flex items-center justify-between">
+            <div>
+              <h4 class="text-xs font-bold text-govNavy">Solvathon Demonstration Mode (Simulation Preview)</h4>
+              <p class="text-[11px] text-slate-500">Preview simulated multi-day Holt-Winters exponential trend forecasting with confidence intervals.</p>
+            </div>
+            <button id="forecast-sim-toggle" onclick="toggleForecastSimulation()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold px-4 py-2 rounded transition">
+              Unlock Simulation Preview
+            </button>
+          </div>
+
+          <div id="forecast-chart-container" class="bg-white p-5 rounded-lg shadow-sm border border-slate-200 hidden">
+            <div class="flex items-center justify-between mb-2">
+              <h3 class="text-sm font-bold text-govNavy flex items-center gap-2">
+                <i data-lucide="trending-up" class="w-4 h-4 text-govGold"></i>
+                Projected Collection Amount with 95% Confidence Bounds
+              </h3>
+              <span class="bg-amber-100 text-amber-800 text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider">
+                Simulation Preview • Not Real Forecast
+              </span>
+            </div>
+            <div class="h-80">
+              <canvas id="forecastChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================================================== -->
+      <!-- TAB 11: ACTIONABLE RECOMMENDATIONS                       -->
+      <!-- ======================================================== -->
+      <section id="tab-recommendations" class="tab-content hidden space-y-6">
+        <div>
+          <h2 class="text-xl font-bold text-govNavy">Evidence-Based Recommendations Engine (FR-12)</h2>
+          <p class="text-xs text-slate-500">Practical operational interventions backed by verified empirical findings.</p>
+        </div>
+
+        <!-- Empty State Container -->
+        <div id="recommendations-empty" class="bg-white p-10 rounded-xl shadow-sm border border-slate-200 text-center space-y-4">
+          <div class="w-16 h-16 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto shadow-inner">
+            <i data-lucide="check-circle" class="w-8 h-8"></i>
+          </div>
+          <div class="max-w-md mx-auto space-y-1">
+            <h3 class="text-base font-bold text-slate-800">Action Recommendations Awaiting Dataset</h3>
+            <p class="text-xs text-slate-500 leading-relaxed">
+              Generates practical operational interventions (frequency adjustments, peak dispatching, terminal interchange planning) grounded strictly in verified ticketing data.
+            </p>
+          </div>
+          <div class="flex items-center justify-center gap-3 pt-2">
+            <button onclick="triggerUniversalUpload()" class="bg-govNavy hover:bg-govNavyLight text-white text-xs font-semibold px-4 py-2 rounded-lg transition shadow-sm flex items-center gap-1.5">
+              <i data-lucide="upload" class="w-3.5 h-3.5 text-amber-400"></i>
+              <span>Upload Dataset</span>
+            </button>
+            <button onclick="switchTab('dataset-management')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-4 py-2 rounded-lg transition border border-slate-300">
+              Select from Repository
+            </button>
+          </div>
+        </div>
+
+        <!-- Active Data Content -->
+        <div id="recommendations-content" class="hidden space-y-4">
+          <div id="recommendations-container" class="space-y-4">
+            <div class="text-center p-6 text-slate-400">Generating grounded recommendations...</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================================================== -->
+      <!-- TAB 12: ASK SMARTBUS CONVERSATIONAL AI                   -->
+      <!-- ======================================================== -->
+      <section id="tab-ask-smartbus" class="tab-content hidden space-y-6">
+        <div>
+          <h2 class="text-xl font-bold text-govNavy">Ask SmartBus – Conversational Transport Analytics (FR-13)</h2>
+          <p class="text-xs text-slate-500">Ask natural-language questions regarding the active dataset with verified calculations and zero hallucinations.</p>
+        </div>
+
+        <!-- Chat Container -->
+        <div class="bg-white rounded-lg shadow-sm border border-slate-200 flex flex-col h-[520px]">
+          <div id="chat-messages" class="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4">
+            <!-- Welcome message -->
+            <div class="flex items-start gap-3">
+              <div class="w-8 h-8 rounded-full bg-govNavy text-white flex items-center justify-center text-xs font-bold shadow">
+                SB
+              </div>
+              <div class="bg-slate-100 rounded-lg p-3 text-xs text-slate-800 max-w-xl">
+                <p class="font-semibold text-govNavy mb-1">Namaskara! I am SmartBus.</p>
+                <p id="chat-welcome-text">
+                  Welcome to the platform. Once a dataset is uploaded or activated, you can ask questions about peak demand hours, top origin-destination corridors, recorded collections, waybills, and anomalies.
+                </p>
+                <p class="text-[10px] text-slate-400 mt-2">🔒 Guaranteed zero hallucinated numbers: every answer is derived from verified calculations.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Suggested Query Chips -->
+          <div class="px-4 py-2 bg-slate-50 border-t border-slate-100 flex flex-wrap gap-2">
+            <span class="text-[10px] font-semibold text-slate-400 uppercase self-center">Try Asking:</span>
+            <button onclick="sendQuickQuery('Which origin–destination pair has the highest recorded passenger quantity?')" class="text-[11px] bg-white border border-slate-200 hover:border-govNavy px-2.5 py-1 rounded-full text-slate-700 transition">
+              Top OD Pair?
+            </button>
+            <button onclick="sendQuickQuery('Which hour recorded the highest transaction volume?')" class="text-[11px] bg-white border border-slate-200 hover:border-govNavy px-2.5 py-1 rounded-full text-slate-700 transition">
+              Peak Transaction Hour?
+            </button>
+            <button onclick="sendQuickQuery('What is the total recorded collection?')" class="text-[11px] bg-white border border-slate-200 hover:border-govNavy px-2.5 py-1 rounded-full text-slate-700 transition">
+              Total Collection?
+            </button>
+            <button onclick="sendQuickQuery('What unusual patterns or anomalies were detected?')" class="text-[11px] bg-white border border-slate-200 hover:border-govNavy px-2.5 py-1 rounded-full text-slate-700 transition">
+              Detected Anomalies?
+            </button>
+            <button onclick="sendQuickQuery('Explain the main findings in this dataset.')" class="text-[11px] bg-white border border-slate-200 hover:border-govNavy px-2.5 py-1 rounded-full text-slate-700 transition">
+              Explain Main Findings
+            </button>
+          </div>
+
+          <!-- Chat Input Bar -->
+          <div class="p-3 border-t border-slate-200 bg-white flex items-center gap-2">
+            <input type="text" id="chat-input" placeholder="Ask a question about the active ticketing data..." 
+                   onkeydown="if(event.key === 'Enter') submitChatQuery()"
+                   class="flex-1 text-xs border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-govNavy bg-slate-50">
+            <button onclick="submitChatQuery()" class="bg-govNavy hover:bg-govNavyLight text-white px-4 py-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
+              <span>Send</span>
+              <i data-lucide="send" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- JAVASCRIPT APPLICATION LOGIC -->
+  <script>
+    // State Management
+    let currentTab = 'welcome';
+    let hasActiveDataset = false;
+    let activeDatasetId = null;
+    let cachedKPIs = null;
+    let allAnomalies = [];
+    let simulationActive = false;
+    let charts = {};
+
+    // Toast Notification System
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      const colors = {
+        success: 'bg-emerald-800 text-white border-emerald-600',
+        error: 'bg-rose-800 text-white border-rose-600',
+        info: 'bg-govNavy text-white border-slate-600',
+        warning: 'bg-amber-700 text-white border-amber-500'
+      };
+      toast.className = `${colors[type] || colors.info} border px-4 py-2.5 rounded-lg shadow-lg text-xs font-medium flex items-center gap-2 pointer-events-auto transition-all transform duration-300 opacity-0 translate-y-2`;
+      
+      const icon = type === 'success' ? 'check-circle' : (type === 'error' ? 'alert-triangle' : 'info');
+      toast.innerHTML = `<i data-lucide="${icon}" class="w-4 h-4 flex-shrink-0"></i><span>${message}</span>`;
+      container.appendChild(toast);
+      lucide.createIcons();
+      
+      requestAnimationFrame(() => {
+        toast.classList.remove('opacity-0', 'translate-y-2');
+      });
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 4500);
+    }
+
+    // Tab Switching
+    function switchTab(tabId) {
+      currentTab = tabId;
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      const activeEl = document.getElementById('tab-' + tabId);
+      if (activeEl) activeEl.classList.remove('hidden');
+
+      document.querySelectorAll('.nav-item').forEach(el => {
+        el.classList.remove('bg-govGold', 'text-white', 'shadow-sm');
+        el.classList.add('hover:bg-slate-800', 'hover:text-white');
+      });
+      const activeNav = document.getElementById('nav-' + tabId);
+      if (activeNav) {
+        activeNav.classList.remove('hover:bg-slate-800', 'hover:text-white');
+        activeNav.classList.add('bg-govGold', 'text-white', 'shadow-sm');
+      }
+      lucide.createIcons();
+    }
+
+    // Universal Upload Triggers
+    function triggerUniversalUpload() {
+      const input = document.getElementById('universal-file-input');
+      if (input) input.click();
+      else {
+        const altInput = document.getElementById('file-input');
+        if (altInput) altInput.click();
+      }
+    }
+
+    function handleExportClick(e) {
+      if (!hasActiveDataset) {
+        e.preventDefault();
+        showToast('Please upload or activate a dataset before exporting reports.', 'warning');
+        return false;
+      }
+      return true;
+    }
+
+    // Refresh All Data
+    async function refreshAllData() {
+      await loadDatasetInfo();
+      await loadDatasetRepo();
+
+      if (hasActiveDataset) {
+        updateEmptyStates(true);
+        await loadExecutiveKPIs();
+        await loadPassengerAnalytics();
+        await loadRevenueAnalytics();
+        await loadODAnalytics();
+        await loadTimeAnalytics();
+        await loadWaybillAnalytics();
+        await loadInsights();
+        await loadAnomalies();
+        await loadForecasting();
+        await loadRecommendations();
+        await loadQualityReport();
+        await loadAuditLogs();
+      } else {
+        updateEmptyStates(false);
+        destroyAllCharts();
+      }
+      lucide.createIcons();
+    }
+
+    // Toggle Empty States vs Active Data across all tabs
+    function updateEmptyStates(isActive) {
+      const tabsWithEmpty = [
+        'executive', 'passenger', 'revenue', 'od', 
+        'time', 'waybill', 'insights', 'anomaly', 
+        'forecasting', 'recommendations'
+      ];
+      tabsWithEmpty.forEach(t => {
+        const emptyEl = document.getElementById(`${t}-empty`);
+        const contentEl = document.getElementById(`${t}-content`);
+        if (emptyEl && contentEl) {
+          if (isActive) {
+            emptyEl.classList.add('hidden');
+            contentEl.classList.remove('hidden');
+          } else {
+            emptyEl.classList.remove('hidden');
+            contentEl.classList.add('hidden');
+          }
+        }
+      });
+
+      // Filter select state
+      const select = document.getElementById('waybill-filter-select');
+      const filterText = document.getElementById('filter-status-text');
+      const deactivateBtn = document.getElementById('btn-deactivate-header');
+      const sidebarIndicator = document.getElementById('sidebar-dataset-indicator');
+      const welcomeActiveHint = document.getElementById('welcome-active-hint');
+
+      if (isActive) {
+        select.removeAttribute('disabled');
+        deactivateBtn.classList.remove('hidden');
+        deactivateBtn.classList.add('flex');
+        sidebarIndicator.textContent = 'ACTIVE';
+        sidebarIndicator.className = 'text-[9px] bg-emerald-900 text-emerald-300 px-1.5 py-0.5 rounded font-mono font-bold';
+        if (welcomeActiveHint) welcomeActiveHint.classList.remove('hidden');
+      } else {
+        select.setAttribute('disabled', 'true');
+        select.innerHTML = '<option value="">All Waybills (Dataset Inactive)</option>';
+        filterText.textContent = 'SmartBus in clean standby state. Upload or activate an Excel/CSV dataset to unlock analytics.';
+        deactivateBtn.classList.add('hidden');
+        deactivateBtn.classList.remove('flex');
+        sidebarIndicator.textContent = 'STANDBY';
+        sidebarIndicator.className = 'text-[9px] bg-slate-800 text-amber-400 px-1.5 py-0.5 rounded font-mono';
+        if (welcomeActiveHint) welcomeActiveHint.classList.add('hidden');
+      }
+    }
+
+    function destroyAllCharts() {
+      Object.keys(charts).forEach(k => {
+        if (charts[k]) {
+          charts[k].destroy();
+          charts[k] = null;
+        }
+      });
+    }
+
+    // Load Dataset Info
+    async function loadDatasetInfo() {
+      try {
+        const res = await fetch('/api/dataset/info');
+        const data = await res.json();
+        if (data.has_active_dataset && data.dataset) {
+          hasActiveDataset = true;
+          const ds = data.dataset;
+          activeDatasetId = ds.dataset_id;
+          
+          document.getElementById('active-dataset-dot').className = 'w-2 h-2 rounded-full bg-emerald-400 mr-2 animate-pulse';
+          document.getElementById('active-dataset-name').textContent = `${ds.filename} (${ds.record_count.toLocaleString()} rows)`;
+          
+          const typeBadge = document.getElementById('active-dataset-type-badge');
+          if (ds.is_demo) {
+            typeBadge.textContent = 'DEMO BENCHMARK';
+            typeBadge.className = 'ml-2 bg-amber-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold uppercase';
+          } else {
+            typeBadge.textContent = 'DEPARTMENT UPLOAD';
+            typeBadge.className = 'ml-2 bg-emerald-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold uppercase';
+          }
+
+          const datesText = (ds.dates && ds.dates.length > 0) ? ds.dates.join(', ') : 'Single Day';
+          document.getElementById('filter-status-text').textContent = `Active: ${ds.filename} | Viewing ${ds.record_count.toLocaleString()} Records | Dates: ${datesText}`;
+        } else {
+          hasActiveDataset = false;
+          activeDatasetId = null;
+          document.getElementById('active-dataset-dot').className = 'w-2 h-2 rounded-full bg-slate-400 mr-2';
+          document.getElementById('active-dataset-name').textContent = 'No Active Dataset';
+          const typeBadge = document.getElementById('active-dataset-type-badge');
+          typeBadge.textContent = 'Awaiting Upload';
+          typeBadge.className = 'ml-2 bg-slate-700 text-[10px] px-1.5 py-0.5 rounded font-bold uppercase text-amber-400';
+        }
+      } catch (e) {
+        console.error('Error fetching dataset info:', e);
+      }
+    }
+
+    // Load Dataset Repository
+    async function loadDatasetRepo() {
+      try {
+        const res = await fetch('/api/dataset/list');
+        const data = await res.json();
+        const datasets = data.datasets || [];
+        
+        // Update welcome screen count
+        const countEl = document.getElementById('welcome-repo-count');
+        if (countEl) countEl.textContent = datasets.length;
+
+        const tbody = document.getElementById('dataset-repo-table-body');
+        tbody.innerHTML = '';
+
+        if (datasets.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-slate-400 text-xs">No datasets uploaded yet. Upload your first Excel or CSV dataset above.</td></tr>';
+          return;
+        }
+
+        datasets.forEach(d => {
+          const tr = document.createElement('tr');
+          tr.className = d.is_active ? 'bg-amber-50/70 font-medium' : 'hover:bg-slate-50';
+          const typeBadge = d.is_demo
+            ? '<span class="bg-amber-100 text-amber-800 text-[10px] px-2 py-0.5 rounded font-semibold uppercase">Demo Benchmark</span>'
+            : '<span class="bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded font-semibold uppercase">Department Upload</span>';
+
+          const actionBtn = d.is_active
+            ? `<div class="flex items-center justify-center gap-2">
+                 <span class="text-emerald-700 font-bold text-xs flex items-center gap-1"><i data-lucide="check" class="w-3.5 h-3.5"></i> Active</span>
+                 <button onclick="deactivateActiveDataset()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-2 py-0.5 rounded text-[11px] transition">Deactivate</button>
+               </div>`
+            : `<button onclick="setActiveDataset('${d.dataset_id}')" class="bg-govNavy hover:bg-govNavyLight text-white px-2.5 py-1 rounded text-xs transition">Set Active</button>`;
+
+          tr.innerHTML = `
+            <td class="p-2.5 font-semibold text-slate-900">${d.filename}</td>
+            <td class="p-2.5">${typeBadge}</td>
+            <td class="p-2.5 text-right font-mono">${d.record_count.toLocaleString()}</td>
+            <td class="p-2.5 text-right font-mono text-[11px]">${(d.dates || []).join(', ') || 'N/A'}</td>
+            <td class="p-2.5 text-center">${actionBtn}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (e) {
+        console.error('Error loading dataset repo:', e);
+      }
+    }
+
+    async function setActiveDataset(datasetId) {
+      try {
+        const res = await fetch(`/api/dataset/set-active/${datasetId}`, { method: 'POST' });
+        if (res.ok) {
+          showToast('Dataset activated. Loading analytics...', 'success');
+          await refreshAllData();
+          switchTab('executive-overview');
+        } else {
+          showToast('Failed to activate dataset.', 'error');
+        }
+      } catch (e) {
+        showToast(`Error: ${e.message}`, 'error');
+      }
+    }
+
+    async function deactivateActiveDataset() {
+      try {
+        const res = await fetch('/api/dataset/deactivate', { method: 'POST' });
+        if (res.ok) {
+          showToast('Dataset deactivated. SmartBus is in clean welcome state.', 'info');
+          await refreshAllData();
+          switchTab('welcome');
+        }
+      } catch (e) {
+        showToast(`Error deactivating: ${e.message}`, 'error');
+      }
+    }
+
+    // Load Executive KPIs
+    async function loadExecutiveKPIs(waybill = null) {
+      try {
+        let url = '/api/analytics/executive';
+        if (waybill) url += `?waybill=${encodeURIComponent(waybill)}`;
+        const res = await fetch(url);
+        const k = await res.json();
+        cachedKPIs = k;
+
+        document.getElementById('kpi-total-records').textContent = (k.total_records || 0).toLocaleString();
+        document.getElementById('kpi-distinct-tickets').textContent = (k.distinct_tickets || 0).toLocaleString();
+        document.getElementById('kpi-passenger-quantity').textContent = (k.recorded_passenger_quantity || 0).toLocaleString();
+        document.getElementById('kpi-avg-psgr-ticket').textContent = `${(k.avg_passengers_per_ticket || 0).toFixed(2)} psgr`;
+        document.getElementById('kpi-collection-amount').textContent = `${(k.recorded_collection_amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        document.getElementById('kpi-avg-fare-ticket').textContent = `${(k.avg_collection_per_ticket || 0).toFixed(2)}`;
+        document.getElementById('kpi-uncollected-amount').textContent = `${(k.recorded_uncollected_amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        
+        const tot = (k.recorded_collection_amount || 0) + (k.recorded_uncollected_amount || 0);
+        const uncollPct = tot > 0 ? (((k.recorded_uncollected_amount || 0) / tot) * 100).toFixed(1) : 0;
+        document.getElementById('kpi-uncoll-pct').textContent = `${uncollPct}% of total`;
+
+        document.getElementById('kpi-distinct-waybills').textContent = (k.distinct_waybills || 0).toLocaleString();
+        document.getElementById('kpi-distinct-origins').textContent = (k.distinct_origin_stops || 0).toLocaleString();
+        document.getElementById('kpi-distinct-destinations').textContent = (k.distinct_destination_stops || 0).toLocaleString();
+      } catch (e) {
+        console.error('Error loading KPIs:', e);
+      }
+    }
+
+    // Apply Waybill Filter
+    async function applyWaybillFilter() {
+      const select = document.getElementById('waybill-filter-select');
+      const wb = select.value;
+      await loadExecutiveKPIs(wb || null);
+    }
+
+    function populateWaybillDropdown(waybills) {
+      const select = document.getElementById('waybill-filter-select');
+      select.innerHTML = '<option value="">All Waybills (Entire Fleet)</option>';
+      waybills.forEach(w => {
+        const opt = document.createElement('option');
+        opt.value = w.waybill_number;
+        opt.textContent = `${w.waybill_number} (Coll: ${w.collection_amount.toLocaleString('en-US', {minimumFractionDigits: 2})} - ${w.record_count} tx)`;
+        select.appendChild(opt);
+      });
+    }
+
+    // Load Passenger Analytics
+    async function loadPassengerAnalytics() {
+      try {
+        const res = await fetch('/api/analytics/passenger?limit=10');
+        const data = await res.json();
+
+        if (charts.passengerDist) charts.passengerDist.destroy();
+        const distLabels = Object.keys(data.passenger_count_distribution || {});
+        const distValues = Object.values(data.passenger_count_distribution || {});
+
+        const ctx = document.getElementById('passengerDistChart').getContext('2d');
+        charts.passengerDist = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: distLabels.map(l => `${l} Passenger(s)`),
+            datasets: [{
+              label: 'Ticket Transactions',
+              data: distValues,
+              backgroundColor: '#0b2545',
+              borderRadius: 4
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } }
+          }
+        });
+
+        if (charts.topOrigins) charts.topOrigins.destroy();
+        const topOrigins = data.top_origins_by_passengers || [];
+        const ctxO = document.getElementById('topOriginsChart').getContext('2d');
+        charts.topOrigins = new Chart(ctxO, {
+          type: 'bar',
+          data: {
+            labels: topOrigins.map(o => o.stop_name),
+            datasets: [{
+              label: 'Recorded Passengers',
+              data: topOrigins.map(o => o.total_passengers),
+              backgroundColor: '#059669',
+              borderRadius: 4
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            plugins: { legend: { display: false } }
+          }
+        });
+
+        if (charts.topDestinations) charts.topDestinations.destroy();
+        const topDest = data.top_destinations_by_passengers || [];
+        const ctxD = document.getElementById('topDestinationsChart').getContext('2d');
+        charts.topDestinations = new Chart(ctxD, {
+          type: 'bar',
+          data: {
+            labels: topDest.map(d => d.stop_name),
+            datasets: [{
+              label: 'Recorded Passengers',
+              data: topDest.map(d => d.total_passengers),
+              backgroundColor: '#0d9488',
+              borderRadius: 4
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            plugins: { legend: { display: false } }
+          }
+        });
+      } catch (e) {
+        console.error('Error loading passenger analytics:', e);
+      }
+    }
+
+    // Load Revenue Analytics
+    async function loadRevenueAnalytics() {
+      try {
+        const res = await fetch('/api/analytics/revenue?limit=10');
+        const data = await res.json();
+
+        if (charts.overviewBracket) charts.overviewBracket.destroy();
+        const brackets = data.collection_distribution || {};
+        const ctxB = document.getElementById('overviewBracketChart').getContext('2d');
+        charts.overviewBracket = new Chart(ctxB, {
+          type: 'doughnut',
+          data: {
+            labels: Object.keys(brackets),
+            datasets: [{
+              data: Object.values(brackets),
+              backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899']
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'right' } }
+          }
+        });
+
+        if (charts.waybillRev) charts.waybillRev.destroy();
+        const topWb = data.top_waybills_by_collection || [];
+        const ctxW = document.getElementById('waybillRevenueChart').getContext('2d');
+        charts.waybillRev = new Chart(ctxW, {
+          type: 'bar',
+          data: {
+            labels: topWb.map(w => w.waybill_number),
+            datasets: [{
+              label: 'Recorded Coll Amt',
+              data: topWb.map(w => w.collection_amount),
+              backgroundColor: '#d97706',
+              borderRadius: 4
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } }
+          }
+        });
+
+        if (charts.waybillUncoll) charts.waybillUncoll.destroy();
+        const uncollWb = data.uncollected_by_waybill || [];
+        const ctxU = document.getElementById('waybillUncollChart').getContext('2d');
+        charts.waybillUncoll = new Chart(ctxU, {
+          type: 'bar',
+          data: {
+            labels: uncollWb.map(w => w.waybill_number),
+            datasets: [{
+              label: 'Recorded Uncoll Amt',
+              data: uncollWb.map(w => w.uncollected_amount),
+              backgroundColor: '#e11d48',
+              borderRadius: 4
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } }
+          }
+        });
+      } catch (e) {
+        console.error('Error loading collection analytics:', e);
+      }
+    }
+
+    // Load Origin Destination Analytics
+    async function loadODAnalytics() {
+      try {
+        const res = await fetch('/api/analytics/origin-destination?limit=15');
+        const data = await res.json();
+        const high = data.high_volume_movements || [];
+
+        const overviewBody = document.getElementById('overview-od-table-body');
+        overviewBody.innerHTML = '';
+        high.slice(0, 5).forEach(m => {
+          const tr = document.createElement('tr');
+          tr.className = 'hover:bg-slate-50';
+          tr.innerHTML = `
+            <td class="p-2.5 font-medium text-slate-800">${m.movement}</td>
+            <td class="p-2.5 text-right font-mono">${m.transaction_count.toLocaleString()}</td>
+            <td class="p-2.5 text-right font-bold text-emerald-700">${m.passenger_quantity.toLocaleString()}</td>
+            <td class="p-2.5 text-right font-mono text-slate-900">${m.collection_amount.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+            <td class="p-2.5 text-right font-mono">${m.avg_collection_per_passenger.toFixed(2)}</td>
+          `;
+          overviewBody.appendChild(tr);
+        });
+
+        const odTable = document.getElementById('od-high-table');
+        odTable.innerHTML = '';
+        high.forEach(m => {
+          const tr = document.createElement('tr');
+          tr.className = 'hover:bg-slate-50';
+          tr.innerHTML = `
+            <td class="p-2 font-medium">${m.movement}</td>
+            <td class="p-2 text-right font-bold text-emerald-700">${m.passenger_quantity.toLocaleString()}</td>
+            <td class="p-2 text-right font-mono">${m.collection_amount.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+          `;
+          odTable.appendChild(tr);
+        });
+
+        const netTable = document.getElementById('od-net-table');
+        netTable.innerHTML = '';
+        (data.net_flows || []).forEach(f => {
+          const tr = document.createElement('tr');
+          tr.className = 'hover:bg-slate-50';
+          const netClass = f.net_passenger_flow >= 0 ? 'text-emerald-700 font-bold' : 'text-rose-700 font-bold';
+          tr.innerHTML = `
+            <td class="p-2 font-medium">${f.stop_name}</td>
+            <td class="p-2 text-right font-mono">${f.departed_passengers.toLocaleString()}</td>
+            <td class="p-2 text-right font-mono">${f.arrived_passengers.toLocaleString()}</td>
+            <td class="p-2 text-right font-mono ${netClass}">${f.net_passenger_flow > 0 ? '+' : ''}${f.net_passenger_flow.toLocaleString()}</td>
+          `;
+          netTable.appendChild(tr);
+        });
+      } catch (e) {
+        console.error('Error loading OD analytics:', e);
+      }
+    }
+
+    // Load Time-Based Analytics
+    async function loadTimeAnalytics() {
+      try {
+        const res = await fetch('/api/analytics/time-based');
+        const data = await res.json();
+        const trends = data.hourly_trends || [];
+
+        document.getElementById('time-peak-tx').textContent = data.peak_transaction_hour || '--';
+        document.getElementById('time-peak-psgr').textContent = data.peak_passenger_hour || '--';
+        
+        const primStats = data.primary_peak_window || {};
+        const mStats = data.morning_peak_stats || {};
+        const eStats = data.evening_peak_stats || {};
+
+        if (primStats.hours && primStats.hours !== 'N/A') {
+          document.getElementById('primary-peak-heading').textContent = `Primary 3-Hour Peak Demand Window: ${primStats.hours} (${(primStats.total_passengers || 0).toLocaleString()} recorded passengers)`;
+          document.getElementById('primary-peak-explanation').textContent = primStats.selection_basis || 'Selected because this window recorded the highest passenger quantity.';
+        }
+
+        document.getElementById('time-morning-title').textContent = `Morning (${mStats.hours || 'N/A'})`;
+        document.getElementById('time-morning-psgr').textContent = (mStats.total_passengers || 0).toLocaleString();
+        document.getElementById('time-morning-desc').textContent = mStats.selection_basis || 'Morning operational window';
+
+        document.getElementById('time-evening-title').textContent = `Evening (${eStats.hours || 'N/A'})`;
+        document.getElementById('time-evening-psgr').textContent = (eStats.total_passengers || 0).toLocaleString();
+        document.getElementById('time-evening-desc').textContent = eStats.selection_basis || 'Evening operational window';
+
+        const labels = trends.map(t => t.hour);
+        const psgrData = trends.map(t => t.passenger_quantity);
+        const txData = trends.map(t => t.transaction_count);
+        const collData = trends.map(t => t.collection_amount);
+
+        if (charts.overviewHourly) charts.overviewHourly.destroy();
+        const ctxH = document.getElementById('overviewHourlyChart').getContext('2d');
+        charts.overviewHourly = new Chart(ctxH, {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                label: 'Recorded Passengers',
+                data: psgrData,
+                borderColor: '#0b2545',
+                backgroundColor: 'rgba(11, 37, 69, 0.1)',
+                fill: true,
+                tension: 0.3,
+                yAxisID: 'y'
+              },
+              {
+                label: 'Recorded Coll Amt',
+                data: collData,
+                borderColor: '#d97706',
+                backgroundColor: 'transparent',
+                borderDash: [4, 4],
+                tension: 0.3,
+                yAxisID: 'y1'
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: { type: 'linear', display: true, position: 'left' },
+              y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false } }
+            }
+          }
+        });
+
+        if (charts.hourlyDetail) charts.hourlyDetail.destroy();
+        const ctxD = document.getElementById('hourlyDetailChart').getContext('2d');
+        charts.hourlyDetail = new Chart(ctxD, {
+          type: 'bar',
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                type: 'bar',
+                label: 'Ticket Transactions',
+                data: txData,
+                backgroundColor: '#94a3b8',
+                borderRadius: 4,
+                yAxisID: 'y'
+              },
+              {
+                type: 'line',
+                label: 'Passenger Volume',
+                data: psgrData,
+                borderColor: '#059669',
+                backgroundColor: 'transparent',
+                tension: 0.3,
+                yAxisID: 'y'
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false
+          }
+        });
+      } catch (e) {
+        console.error('Error loading time analytics:', e);
+      }
+    }
+
+    // Load Waybill Analytics
+    async function loadWaybillAnalytics() {
+      try {
+        const res = await fetch('/api/analytics/waybills?limit=65');
+        const data = await res.json();
+        const waybills = data.waybills || [];
+
+        populateWaybillDropdown(waybills);
+
+        const tbody = document.getElementById('waybill-table-body');
+        tbody.innerHTML = '';
+        waybills.forEach(w => {
+          const tr = document.createElement('tr');
+          tr.className = 'hover:bg-slate-50';
+          tr.innerHTML = `
+            <td class="p-2.5 font-bold text-govNavy">${w.waybill_number}</td>
+            <td class="p-2.5 text-right font-mono">${w.record_count.toLocaleString()}</td>
+            <td class="p-2.5 text-right font-bold text-emerald-700">${w.passenger_quantity.toLocaleString()}</td>
+            <td class="p-2.5 text-right font-mono font-semibold">${w.collection_amount.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+            <td class="p-2.5 text-right font-mono text-rose-600">${w.uncollected_amount.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+            <td class="p-2.5 text-right font-mono">${w.active_hours_count} hrs</td>
+            <td class="p-2.5 text-right text-[11px] text-slate-500 font-mono">${w.first_transaction_time} - ${w.last_transaction_time}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (e) {
+        console.error('Error loading waybills:', e);
+      }
+    }
+
+    // Load Automated Insights
+    async function loadInsights() {
+      try {
+        const res = await fetch('/api/intelligence/insights');
+        const data = await res.json();
+        const container = document.getElementById('insights-container');
+        container.innerHTML = '';
+
+        (data.insights || []).forEach(ins => {
+          const card = document.createElement('div');
+          card.className = 'bg-white p-5 rounded-lg shadow-sm border border-slate-200 border-l-4 border-l-govNavy';
+          card.innerHTML = `
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded">
+                ${ins.category}
+              </span>
+              <span class="text-[10px] text-emerald-700 font-semibold">${ins.confidence}</span>
+            </div>
+            <h3 class="text-sm font-bold text-slate-900 mb-2 leading-snug">${ins.finding}</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3 text-xs bg-slate-50 p-3 rounded">
+              <div>
+                <span class="text-slate-400 text-[10px] uppercase block font-semibold">Supporting Metric</span>
+                <span class="text-slate-700 font-medium">${ins.supporting_metric}</span>
+              </div>
+              <div>
+                <span class="text-slate-400 text-[10px] uppercase block font-semibold">Analytical Baseline</span>
+                <span class="text-slate-700 font-medium">${ins.baseline_or_comparison}</span>
+              </div>
+            </div>
+            <div class="mt-2 text-[11px] text-slate-400 italic">
+              <strong>Scope:</strong> ${ins.dataset_scope} | <strong>Limitations:</strong> ${ins.limitations}
+            </div>
+          `;
+          container.appendChild(card);
+        });
+      } catch (e) {
+        console.error('Error loading insights:', e);
+      }
+    }
+
+    // Load Anomalies
+    async function loadAnomalies() {
+      try {
+        const res = await fetch('/api/intelligence/anomalies');
+        const data = await res.json();
+        allAnomalies = data.anomalies || [];
+        renderAnomalies(allAnomalies);
+      } catch (e) {
+        console.error('Error loading anomalies:', e);
+      }
+    }
+
+    function renderAnomalies(anoms) {
+      const container = document.getElementById('anomalies-container');
+      container.innerHTML = '';
+
+      if (anoms.length === 0) {
+        container.innerHTML = '<div class="col-span-2 text-center p-6 text-slate-400 text-xs">No anomalies detected in active filter.</div>';
+        return;
+      }
+
+      anoms.forEach(a => {
+        const isDQ = a.anomaly_type === 'Data Quality';
+        const card = document.createElement('div');
+        card.className = `bg-white p-4 rounded-lg shadow-sm border border-slate-200 border-l-4 ${isDQ ? 'border-l-rose-500' : 'border-l-amber-500'}`;
+        card.innerHTML = `
+          <div class="flex items-center justify-between mb-1.5">
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded ${isDQ ? 'badge-dq' : 'badge-stat'}">
+              ${a.anomaly_type}
+            </span>
+            <span class="text-[10px] text-slate-400 font-mono">${a.id}</span>
+          </div>
+          <h4 class="text-xs font-bold text-slate-800 mb-1">${a.description}</h4>
+          <div class="mt-2 text-[11px] bg-slate-50 p-2 rounded space-y-1">
+            <div class="flex justify-between">
+              <span class="text-slate-500">Observed:</span>
+              <span class="font-bold text-slate-800">${a.observed_value}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-500">Expected Envelope:</span>
+              <span class="text-slate-600">${a.expected_range}</span>
+            </div>
+            <div class="flex justify-between text-[10px] text-slate-400 pt-1 border-t">
+              <span>Method:</span>
+              <span>${a.statistical_method}</span>
+            </div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function filterAnomalies(type) {
+      document.getElementById('anom-btn-all').className = 'px-3 py-1 rounded text-xs font-semibold bg-slate-200 text-slate-700 hover:bg-slate-300';
+      document.getElementById('anom-btn-dq').className = 'px-3 py-1 rounded text-xs font-semibold bg-slate-200 text-slate-700 hover:bg-slate-300';
+      document.getElementById('anom-btn-stat').className = 'px-3 py-1 rounded text-xs font-semibold bg-slate-200 text-slate-700 hover:bg-slate-300';
+
+      if (type === 'ALL') {
+        document.getElementById('anom-btn-all').className = 'px-3 py-1 rounded text-xs font-semibold bg-govNavy text-white';
+        renderAnomalies(allAnomalies);
+      } else if (type === 'Data Quality') {
+        document.getElementById('anom-btn-dq').className = 'px-3 py-1 rounded text-xs font-semibold bg-govNavy text-white';
+        renderAnomalies(allAnomalies.filter(a => a.anomaly_type === 'Data Quality'));
+      } else {
+        document.getElementById('anom-btn-stat').className = 'px-3 py-1 rounded text-xs font-semibold bg-govNavy text-white';
+        renderAnomalies(allAnomalies.filter(a => a.anomaly_type === 'Operational Statistical'));
+      }
+    }
+
+    // Load Forecasting
+    async function loadForecasting() {
+      try {
+        const res = await fetch(`/api/intelligence/forecasting?enable_simulation=${simulationActive}`);
+        const data = await res.json();
+
+        document.getElementById('forecasting-governance-text').textContent = data.governance_notice;
+
+        const showChart = (data.is_eligible || simulationActive) && data.forecast_points?.length > 0;
+        if (showChart) {
+          document.getElementById('forecast-chart-container').classList.remove('hidden');
+          const pts = data.forecast_points;
+          const labels = pts.map(p => p.date);
+          const predicted = pts.map(p => p.predicted_collection);
+          const lower = pts.map(p => p.confidence_lower);
+          const upper = pts.map(p => p.confidence_upper);
+
+          if (charts.forecast) charts.forecast.destroy();
+          const ctxF = document.getElementById('forecastChart').getContext('2d');
+          charts.forecast = new Chart(ctxF, {
+            type: 'line',
+            data: {
+              labels: labels,
+              datasets: [
+                {
+                  label: 'Projected Collection Amount',
+                  data: predicted,
+                  borderColor: '#0b2545',
+                  backgroundColor: 'transparent',
+                  tension: 0.3
+                },
+                {
+                  label: 'Upper Confidence Bound (95%)',
+                  data: upper,
+                  borderColor: '#94a3b8',
+                  borderDash: [5, 5],
+                  fill: '+1',
+                  backgroundColor: 'rgba(148, 163, 184, 0.15)'
+                },
+                {
+                  label: 'Lower Confidence Bound (95%)',
+                  data: lower,
+                  borderColor: '#94a3b8',
+                  borderDash: [5, 5],
+                  fill: false
+                }
+              ]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false
+            }
+          });
+        } else {
+          document.getElementById('forecast-chart-container').classList.add('hidden');
+        }
+      } catch (e) {
+        console.error('Error loading forecasting:', e);
+      }
+    }
+
+    function toggleForecastSimulation() {
+      simulationActive = !simulationActive;
+      const btn = document.getElementById('forecast-sim-toggle');
+      if (simulationActive) {
+        btn.textContent = 'Hide Simulation Preview';
+        btn.className = 'bg-rose-700 hover:bg-rose-800 text-white text-xs font-semibold px-4 py-2 rounded transition';
+      } else {
+        btn.textContent = 'Unlock Simulation Preview';
+        btn.className = 'bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold px-4 py-2 rounded transition';
+        document.getElementById('forecast-chart-container').classList.add('hidden');
+      }
+      loadForecasting();
+    }
+
+    // Load Recommendations
+    async function loadRecommendations() {
+      try {
+        const res = await fetch('/api/intelligence/recommendations');
+        const data = await res.json();
+        const container = document.getElementById('recommendations-container');
+        container.innerHTML = '';
+
+        (data.recommendations || []).forEach(r => {
+          const card = document.createElement('div');
+          card.className = 'bg-white p-5 rounded-lg shadow-sm border border-slate-200 border-l-4 border-l-emerald-600';
+          card.innerHTML = `
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-800 px-2.5 py-0.5 rounded">
+                ${r.category}
+              </span>
+              <span class="text-[10px] font-bold text-rose-600">Impact: ${r.impact_level}</span>
+            </div>
+            <h3 class="text-sm font-bold text-govNavy mb-1.5">${r.title}</h3>
+            <p class="text-xs text-slate-700 mb-3 leading-relaxed">${r.action_item}</p>
+            <div class="bg-slate-50 p-3 rounded text-xs space-y-1">
+              <div><strong class="text-slate-600">Evidence:</strong> <span class="text-slate-700">${r.supporting_evidence}</span></div>
+              <div class="text-[11px] text-slate-400 italic"><strong>Prerequisites & Governance:</strong> ${r.limitations_and_prerequisites}</div>
+            </div>
+          `;
+          container.appendChild(card);
+        });
+      } catch (e) {
+        console.error('Error loading recommendations:', e);
+      }
+    }
+
+    // Load Quality Report
+    async function loadQualityReport() {
+      try {
+        const res = await fetch('/api/dataset/quality-report');
+        const q = await res.json();
+
+        document.getElementById('kpi-quality-score').textContent = `${q.quality_score}%`;
+        document.getElementById('quality-score-badge').textContent = `${q.quality_score}%`;
+        document.getElementById('quality-filename').textContent = `Audited file: ${q.filename} [${q.is_demo ? 'Demo Benchmark' : 'Official Upload'}]`;
+
+        document.getElementById('diag-total-records').textContent = (q.total_records || 0).toLocaleString();
+        document.getElementById('diag-missing-origins').textContent = (q.missing_from_stops || 0).toLocaleString();
+        document.getElementById('diag-missing-destinations').textContent = (q.missing_to_stops || 0).toLocaleString();
+        document.getElementById('diag-repeated-tickets').textContent = (q.repeated_ticket_numbers || 0).toLocaleString();
+
+        document.getElementById('col10-nonnulls').textContent = (q.unresolved_column_non_nulls || 0).toLocaleString();
+        document.getElementById('col10-unique').textContent = (q.unresolved_column_unique_values || 0).toLocaleString();
+
+        const warnList = document.getElementById('quality-warnings-list');
+        warnList.innerHTML = '';
+        (q.warnings || []).forEach(w => {
+          const item = document.createElement('div');
+          item.className = 'text-[11px] text-slate-700 bg-amber-50 border border-amber-200 px-2.5 py-1.5 rounded flex items-start gap-2';
+          item.innerHTML = `<span class="text-amber-600 font-bold">⚠</span> <span>${w}</span>`;
+          warnList.appendChild(item);
+        });
+      } catch (e) {
+        console.error('Error loading quality report:', e);
+      }
+    }
+
+    // Load Audit Logs
+    async function loadAuditLogs() {
+      try {
+        const res = await fetch('/api/dataset/audit-logs');
+        const data = await res.json();
+        const tbody = document.getElementById('audit-log-table-body');
+        tbody.innerHTML = '';
+        (data.logs || []).forEach(l => {
+          const tr = document.createElement('tr');
+          tr.className = 'hover:bg-slate-50';
+          tr.innerHTML = `
+            <td class="p-2 font-mono font-bold text-govNavy">${l.event_type}</td>
+            <td class="p-2 text-slate-700">${l.description}</td>
+            <td class="p-2 text-right font-mono font-semibold">${l.records_affected.toLocaleString()}</td>
+            <td class="p-2 text-right text-[11px] text-slate-400 font-mono">${new Date(l.logged_at).toLocaleTimeString()}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (e) {
+        console.error('Error loading audit logs:', e);
+      }
+    }
+
+    // Chat functionality
+    async function submitChatQuery() {
+      const input = document.getElementById('chat-input');
+      const query = input.value.trim();
+      if (!query) return;
+
+      if (!hasActiveDataset) {
+        showToast('Please upload or activate a dataset before asking questions.', 'warning');
+        return;
+      }
+
+      input.value = '';
+      appendChatMessage('user', query);
+
+      const loadingId = 'loading-' + Date.now();
+      appendChatBubble(loadingId, 'SmartBus', 'Calculating verified metrics...');
+
+      try {
+        const res = await fetch('/api/ask-smartbus', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: query, dataset_id: activeDatasetId })
+        });
+        const data = await res.json();
+
+        const loadingEl = document.getElementById(loadingId);
+        if (loadingEl) loadingEl.remove();
+
+        appendAssistantMessage(data);
+      } catch (e) {
+        const loadingEl = document.getElementById(loadingId);
+        if (loadingEl) loadingEl.remove();
+        appendChatMessage('assistant', 'Sorry, an error occurred while processing your request.');
+      }
+    }
+
+    function sendQuickQuery(q) {
+      document.getElementById('chat-input').value = q;
+      submitChatQuery();
+    }
+
+    function appendChatMessage(sender, text) {
+      const container = document.getElementById('chat-messages');
+      const div = document.createElement('div');
+      div.className = sender === 'user' ? 'flex items-start justify-end gap-3' : 'flex items-start gap-3';
+      
+      const bubbleClass = sender === 'user' 
+        ? 'bg-govNavy text-white rounded-lg p-3 text-xs max-w-xl' 
+        : 'bg-slate-100 text-slate-800 rounded-lg p-3 text-xs max-w-xl';
+
+      div.innerHTML = `
+        ${sender !== 'user' ? '<div class="w-8 h-8 rounded-full bg-govNavy text-white flex items-center justify-center text-xs font-bold shadow">SB</div>' : ''}
+        <div class="${bubbleClass}">
+          <p class="whitespace-pre-line leading-relaxed">${text}</p>
+        </div>
+        ${sender === 'user' ? '<div class="w-8 h-8 rounded-full bg-slate-700 text-white flex items-center justify-center text-xs font-bold shadow">You</div>' : ''}
+      `;
+      container.appendChild(div);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function appendChatBubble(id, sender, text) {
+      const container = document.getElementById('chat-messages');
+      const div = document.createElement('div');
+      div.id = id;
+      div.className = 'flex items-start gap-3';
+      div.innerHTML = `
+        <div class="w-8 h-8 rounded-full bg-govNavy text-white flex items-center justify-center text-xs font-bold shadow">SB</div>
+        <div class="bg-slate-100 text-slate-600 italic rounded-lg p-3 text-xs max-w-xl">
+          ${text}
+        </div>
+      `;
+      container.appendChild(div);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function appendAssistantMessage(data) {
+      const container = document.getElementById('chat-messages');
+      const div = document.createElement('div');
+      div.className = 'flex items-start gap-3';
+      div.innerHTML = `
+        <div class="w-8 h-8 rounded-full bg-govNavy text-white flex items-center justify-center text-xs font-bold shadow">SB</div>
+        <div class="bg-slate-100 text-slate-800 rounded-lg p-3 text-xs max-w-xl space-y-2">
+          <p class="whitespace-pre-line leading-relaxed font-normal">${data.answer}</p>
+          <div class="pt-2 border-t border-slate-200 text-[10px] text-slate-500 flex justify-between">
+            <span>Tool: <strong>${data.analytical_tool_used}</strong></span>
+            <span class="text-emerald-700 font-semibold">${data.confidence}</span>
+          </div>
+          <div class="text-[10px] text-slate-400 italic">
+            ${data.notes_and_limitations}
+          </div>
+        </div>
+      `;
+      container.appendChild(div);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    // Unified File Upload Handling
+    async function handleFileUpload(file) {
+      if (!file) return;
+
+      const welcomeStatus = document.getElementById('welcome-upload-status');
+      const mgmtStatus = document.getElementById('upload-status');
+      
+      const updateStatus = (text, cls) => {
+        if (welcomeStatus) {
+          welcomeStatus.classList.remove('hidden');
+          welcomeStatus.className = `text-xs p-3 rounded-lg border ${cls}`;
+          welcomeStatus.textContent = text;
+        }
+        if (mgmtStatus) {
+          mgmtStatus.classList.remove('hidden');
+          mgmtStatus.className = `mt-3 text-xs font-bold ${cls}`;
+          mgmtStatus.textContent = text;
+        }
+      };
+
+      updateStatus(`Verifying strict 10-column schema for '${file.name}'...`, 'bg-blue-50 text-blue-800 border-blue-200');
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const res = await fetch('/api/dataset/upload', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        if (res.ok) {
+          updateStatus(`Success: Verified 10-column schema and ingested ${data.data.record_count.toLocaleString()} records!`, 'bg-emerald-50 text-emerald-800 border-emerald-200');
+          showToast(`Dataset '${file.name}' verified and ingested successfully!`, 'success');
+          await refreshAllData();
+          switchTab('executive-overview');
+        } else {
+          updateStatus(`Validation Error: ${data.detail || 'Schema validation failed.'}`, 'bg-rose-50 text-rose-800 border-rose-200');
+          showToast(`Upload failed: ${data.detail || 'Validation error'}`, 'error');
+        }
+      } catch (e) {
+        updateStatus(`Network error: ${e.message}`, 'bg-rose-50 text-rose-800 border-rose-200');
+        showToast(`Network error during upload: ${e.message}`, 'error');
+      }
+    }
+
+    // Bind Drop Zones
+    function bindDropZone(zoneId, inputId) {
+      const zone = document.getElementById(zoneId);
+      const input = document.getElementById(inputId);
+      if (!zone || !input) return;
+
+      zone.addEventListener('click', () => input.click());
+      zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('border-govNavy', 'bg-blue-50/50'); });
+      zone.addEventListener('dragleave', () => { zone.classList.remove('border-govNavy', 'bg-blue-50/50'); });
+      zone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        zone.classList.remove('border-govNavy', 'bg-blue-50/50');
+        if (e.dataTransfer.files.length) handleFileUpload(e.dataTransfer.files[0]);
+      });
+    }
+
+    // App Initialization
+    window.addEventListener('DOMContentLoaded', async () => {
+      lucide.createIcons();
+      bindDropZone('welcome-drop-zone', 'universal-file-input');
+      bindDropZone('drop-zone', 'file-input');
+
+      // Check dataset info first
+      await loadDatasetInfo();
+      await loadDatasetRepo();
+
+      if (hasActiveDataset) {
+        switchTab('executive-overview');
+        await refreshAllData();
+      } else {
+        switchTab('welcome');
+        updateEmptyStates(false);
+      }
+      lucide.createIcons();
+    });
+  </script>
+</body>
+</html>
